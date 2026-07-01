@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>About DataSpark | Insights Driven by AI</title>
+    <style>
+      :root {
+        --bg: #020617;
+        --card-bg: #0f172a;
+        --border: #1e293b;
+        --accent: #38bdf8;
+        --text-main: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* Navbar */
+      nav {
+        width: 100%;
+        padding: 20px 40px;
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -0.5px;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+      }
+
+      .nav-link {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: 0.2s;
+      }
+
+      .nav-link:hover {
+        color: var(--accent);
+      }
+
+      .nav-active {
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .btn-cta {
+        background: var(--accent);
+        color: var(--bg);
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 700;
+        transition: 0.2s;
+      }
+
+      .btn-cta:hover {
+        filter: brightness(1.1);
+      }
+
+      /* Page Content */
+      main {
+        width: 100%;
+        max-width: 800px;
+        padding: 40px 20px;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 32px;
+        margin-bottom: 24px;
+        transition: transform 0.2s;
+      }
+
+      .card:hover {
+        transform: scale(1.01);
+        border-color: var(--accent);
+      }
+
+      h1 {
+        color: #fff;
+        margin-bottom: 16px;
+        font-size: 2rem;
+      }
+
+      h2 {
+        color: var(--accent);
+        margin: 24px 0 16px;
+        font-size: 1.25rem;
+      }
+
+      p {
+        line-height: 1.6;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+      }
+
+      ul {
+        margin-bottom: 16px;
+        padding-left: 20px;
+        color: var(--text-muted);
+      }
+
+      li {
+        margin-bottom: 8px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="logo">⚡ DataSpark</div>
+      <div class="nav-links">
+        <a href="/" class="nav-active">About</a>
+        <a href="/app" class="btn-cta">Launch App</a>
+      </div>
+    </nav>
+
+    <main>
+      <div class="card">
+        <h1>Welcome to DataSpark</h1>
+        <p>
+          DataSpark is an intelligent, agent-powered platform designed to turn
+          raw CSV data into structured, actionable intelligence.
+        </p>
+      </div>
+      <div class="card">
+        <h2>The App</h2>
+        <p>
+          Statistical analysis is a tool that everyone must be able to harness.
+          Whether you're a business-person, student, researcher, or data
+          enthusiast, our platform makes it easy to derive insights from your
+          data. With the power of AI, DataSpark automates the process of data
+          analysis, allowing you to focus on making informed decisions wherever
+          you need them.
+        </p>
+      </div>
+      <div class="card">
+        <h2>How It Works</h2>
+        <ul>
+          <li>Upload your CSV file.</li>
+          <li>
+            DataSpark processes the data and generates a structured summary.
+          </li>
+          <li>Interact with the data through an intuitive chat interface.</li>
+          <li>
+            Receive insights, visualizations, and recommendations based on your
+            data.
+          </li>
+        </ul>
+        <p>
+          Our platform is designed to be user-friendly, making data analysis
+          accessible to everyone, regardless of their technical background.
+        </p>
+      </div>
+      <div class="card">
+        <h2>Capabilities</h2>
+        <ul>
+          <li><strong>What it can do</strong></li>
+          <ul>
+            <li>
+              Run statistical analysis on tabular datasets (CSV/DataFrames)
+            </li>
+            <li>
+              Perform linear and logistic regression with automatic validation
+            </li>
+            <li>Compute correlation analysis (Pearson and Spearman)</li>
+            <li>Run chi-squared tests for categorical associations</li>
+            <li>Detect outliers using statistical thresholds</li>
+            <li>Execute SQL queries on datasets using DuckDB</li>
+            <li>Provide dataset profiling and schema inference</li>
+            <li>Detect time-series trends using Mann-Kendall tests</li>
+            <li>Fit polynomial curve models and compare R² scores</li>
+            <li>Auto-handle basic data cleaning (null removal, type checks)</li>
+            <li>Encode categorical variables into numeric format</li>
+          </ul>
+
+          <li><strong>What it cannot do</strong></li>
+          <ul>
+            <li>Guarantee causal inference (correlation ≠ causation)</li>
+            <li>
+              Handle extremely large datasets without performance constraints
+            </li>
+            <li>
+              Replace full machine learning pipelines or feature engineering
+              systems
+            </li>
+            <li>
+              Automatically resolve poor data quality (missingness, bias, or
+              leakage)
+            </li>
+            <li>Infer business context without explicit dataset metadata</li>
+            <li>
+              Guarantee statistical validity when assumptions are violated
+            </li>
+            <li>Replace domain-specific expert interpretation</li>
+            <li>Operate without a loaded dataset in memory</li>
+          </ul>
+        </ul>
+      </div>
+    </main>
+  </body>
+</html>

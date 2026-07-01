@@ -1,0 +1,32 @@
+# Environment
+.env
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Editor swap files
+*.swp
+*.swo
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+
+# Distribution / build
+build/
+dist/
+*.egg-info/

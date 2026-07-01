@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DataSpark | Dashboard</title>
+    <style>
+      :root {
+        --bg: #020617;
+        --card-bg: #0f172a;
+        --border: #1e293b;
+        --accent: #38bdf8;
+        --text-main: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text-main);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Navbar */
+      nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 32px;
+        background: rgba(15, 23, 42, 0.5);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+      }
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -0.5px;
+      }
+      .nav-links {
+        display: flex;
+        gap: 24px;
+      }
+      .nav-link {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: 0.2s;
+      }
+      .nav-link:hover {
+        color: var(--accent);
+      }
+      .nav-active {
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      /* Upload */
+      #upload-bar {
+        padding: 16px 32px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      #upload-bar label {
+        cursor: pointer;
+        background: #1e293b;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        padding: 6px 16px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: 0.2s;
+      }
+      #upload-bar label:hover {
+        background: var(--accent);
+        color: var(--bg);
+      }
+      #upload-status {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+
+      /* Panels */
+      #panels {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+        padding: 24px;
+        gap: 20px;
+      }
+      .panel {
+        flex: 1;
+        overflow-y: auto;
+        background: var(--card-bg);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        padding: 24px;
+      }
+      .panel h3 {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+      }
+
+      /* Input Bar */
+      #input-bar {
+        padding: 24px 32px;
+        background: var(--card-bg);
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 12px;
+      }
+      #input-bar textarea {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: white;
+        padding: 12px;
+        font-size: 0.95rem;
+        resize: none;
+        height: 50px;
+        outline: none;
+      }
+      #input-bar button {
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        padding: 0 24px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      /* Toolkit & Results */
+      .tool-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px;
+        margin-bottom: 10px;
+      }
+      .tool-name {
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .stat-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .stat-table td {
+        padding: 8px 4px;
+        border-bottom: 1px solid #1e293b;
+        color: var(--text-muted);
+      }
+      .col-name {
+        font-weight: 600;
+        color: var(--text-main);
+      }
+
+      .summary-banner {
+        background: #0c4a6e;
+        border-left: 3px solid #7dd3fc;
+        color: #f0f9ff;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="logo">⚡ DataSpark</div>
+      <div class="nav-links">
+        <a href="/" class="nav-link">About</a>
+        <a href="/app" class="nav-active">Launch App</a>
+      </div>
+    </nav>
+
+    <div id="upload-bar">
+      <label for="csv-input">📂 Upload CSV</label>
+      <input type="file" id="csv-input" accept=".csv" />
+      <span id="upload-status">No file loaded</span>
+    </div>
+
+    <div id="panels">
+      <div class="panel" id="tool-panel">
+        <h3>🔧 Tool Calls</h3>
+        <div id="tool-list"></div>
+      </div>
+
+      <div class="panel" id="result-panel">
+        <h3>📊 Result</h3>
+        <div id="result-list"></div>
+      </div>
+    </div>
+
+    <div id="input-bar">
+      <textarea
+        id="user-input"
+        placeholder="Ask anything about your data..."
+        onkeydown="handleKey(event)"
+      ></textarea>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+      const API = "http://127.0.0.1:8000";
+
+      document
+        .getElementById("csv-input")
+        .addEventListener("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const form = new FormData();
+          form.append("file", file);
+
+          document.getElementById("upload-status").textContent = "Uploading...";
+
+          try {
+            const res = await fetch(`${API}/upload`, {
+              method: "POST",
+              body: form,
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+              document.getElementById("upload-status").textContent =
+                `✓ ${data.filename} — ${data.rows} rows, ${data.columns.length} columns`;
+            } else {
+              document.getElementById("upload-status").textContent =
+                `✗ ${data.detail || "Upload failed"}`;
+            }
+          } catch (err) {
+            document.getElementById("upload-status").textContent =
+              "✗ Could not connect to backend";
+          }
+        });
+
+      function handleKey(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      }
+
+      async function sendMessage() {
+        const input = document.getElementById("user-input");
+        const message = input.value.trim();
+        if (!message) return;
+
+        input.value = "";
+
+        document.getElementById("tool-list").innerHTML =
+          `<p class="loading">Running agent...</p>`;
+        document.getElementById("result-list").innerHTML =
+          `<p class="loading">Waiting for results...</p>`;
+
+        try {
+          const res = await fetch(`${API}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            document.getElementById("tool-list").innerHTML =
+              `<p class="loading">No tools called.</p>`;
+            document.getElementById("result-list").innerHTML =
+              `<div class="error-card">⚠️ ${data.detail || "Request failed."}</div>`;
+            return;
+          }
+
+          renderTools(data.tool_calls || []);
+          renderResult(data);
+        } catch (err) {
+          document.getElementById("tool-list").innerHTML =
+            `<p class="loading">No tools called.</p>`;
+          document.getElementById("result-list").innerHTML =
+            `<div class="error-card">⚠️ Could not connect to backend.</div>`;
+        }
+      }
+
+      function renderTools(toolCalls) {
+        const container = document.getElementById("tool-list");
+
+        if (!toolCalls.length) {
+          container.innerHTML = `<p class="loading">No tools called.</p>`;
+          return;
+        }
+
+        container.innerHTML = toolCalls
+          .map(
+            (tc) => `
+              <div class="tool-card">
+                <div class="tool-name">✓ ${escapeHtml(tc.tool || "tool")}</div>
+                <div class="tool-args">${escapeHtml(JSON.stringify(tc.args || {}, null, 2))}</div>
+              </div>
+            `,
+          )
+          .join("");
+      }
+
+      function formatValue(val) {
+        if (val === null || val === undefined) return "";
+
+        if (typeof val === "number") {
+          if (Number.isInteger(val)) return String(val);
+          return val.toFixed(4);
+        }
+
+        if (typeof val === "boolean") return val ? "true" : "false";
+
+        if (typeof val === "object") {
+          return escapeHtml(JSON.stringify(val, null, 2));
+        }
+
+        let text = escapeHtml(String(val));
+
+        text = text.replace(
+          /([A-Za-z0-9)\]])\^([+-]?\d+(\.\d+)?)/g,
+          "$1<sup>$2</sup>",
+        );
+        text = text.replace(
+          /\b([+-]?\d+(\.\d+)?)e([+-]?\d+)\b/gi,
+          "$1×10<sup>$3</sup>",
+        );
+
+        return text;
+      }
+
+      function renderStatsTable(statistics) {
+        if (!statistics || !Object.keys(statistics).length) return "";
+
+        return `
+          <div class="result-card">
+            <div class="section-label">Statistics</div>
+            <table class="stat-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(statistics)
+                  .map(
+                    ([key, value]) => `
+                      <tr>
+                        <td class="col-name">${escapeHtml(key)}</td>
+                        <td class="col-value">${formatValue(value)}</td>
+                      </tr>
+                    `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function renderResult(data) {
+        const container = document.getElementById("result-list");
+        let html = "";
+
+        if (data.summary) {
+          html += `<div class="summary-banner">💬 ${escapeHtml(data.summary)}</div>`;
+        }
+
+        if (data.interpretation) {
+          html += `
+            <div class="result-card">
+              <div class="section-label">Interpretation</div>
+              <div class="result-answer">${escapeHtml(data.interpretation)}</div>
+            </div>
+          `;
+        }
+
+        html += renderStatsTable(data.statistics);
+
+        if (data.insight) {
+          html += `<div class="insight-card">💡 ${escapeHtml(data.insight)}</div>`;
+        }
+
+        if (data.error_guidance) {
+          html += `<div class="error-card">⚠️ ${escapeHtml(data.error_guidance)}</div>`;
+        }
+
+        if (!html.trim()) {
+          html = `<p class="loading">No results.</p>`;
+        }
+
+        container.innerHTML = html;
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+    </script>
+  </body>
+</html>
