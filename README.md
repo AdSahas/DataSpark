@@ -36,6 +36,7 @@ Input → Validate → Transform → Execute → Normalize → Return
 
 ## 🏗️ Architecture Overview
 
+```txt
 ┌──────────────────────────────┐
 │        User Input            │
 └─────────────┬────────────────┘
@@ -55,7 +56,7 @@ Input → Validate → Transform → Execute → Normalize → Return
 ┌──────────────────────────────┐
 │   Response Normalization     │
 └──────────────────────────────┘
-
+```
 ---
 
 ## 🔧 Core Features

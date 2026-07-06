@@ -12,13 +12,7 @@
         --text-main: #f1f5f9;
         --text-muted: #94a3b8;
       }
-
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: "Inter", system-ui, sans-serif;
         background: var(--bg);
@@ -28,8 +22,6 @@
         flex-direction: column;
         overflow: hidden;
       }
-
-      /* Navbar */
       nav {
         display: flex;
         justify-content: space-between;
@@ -39,32 +31,11 @@
         border-bottom: 1px solid var(--border);
         backdrop-filter: blur(12px);
       }
-      .logo {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #fff;
-        letter-spacing: -0.5px;
-      }
-      .nav-links {
-        display: flex;
-        gap: 24px;
-      }
-      .nav-link {
-        color: var(--text-muted);
-        text-decoration: none;
-        font-size: 0.9rem;
-        transition: 0.2s;
-      }
-      .nav-link:hover {
-        color: var(--accent);
-      }
-      .nav-active {
-        color: var(--accent);
-        font-weight: 600;
-        text-decoration: none;
-      }
-
-      /* Upload */
+      .logo { font-size: 1.25rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+      .nav-links { display: flex; gap: 24px; }
+      .nav-link { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; }
+      .nav-link:hover { color: var(--accent); }
+      .nav-active { color: var(--accent); font-weight: 600; text-decoration: none; }
       #upload-bar {
         padding: 16px 32px;
         background: var(--card-bg);
@@ -84,16 +55,8 @@
         font-weight: 600;
         transition: 0.2s;
       }
-      #upload-bar label:hover {
-        background: var(--accent);
-        color: var(--bg);
-      }
-      #upload-status {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-      }
-
-      /* Panels */
+      #upload-bar label:hover { background: var(--accent); color: var(--bg); }
+      #upload-status { font-size: 0.85rem; color: var(--text-muted); }
       #panels {
         display: flex;
         flex: 1;
@@ -116,8 +79,6 @@
         color: var(--text-muted);
         margin-bottom: 20px;
       }
-
-      /* Input Bar */
       #input-bar {
         padding: 24px 32px;
         background: var(--card-bg);
@@ -136,7 +97,9 @@
         resize: none;
         height: 50px;
         outline: none;
+        transition: border-color 0.2s;
       }
+      #input-bar textarea:focus { border-color: var(--accent); }
       #input-bar button {
         background: var(--accent);
         color: var(--bg);
@@ -145,283 +108,267 @@
         padding: 0 24px;
         cursor: pointer;
         font-weight: 700;
+        transition: filter 0.2s;
       }
-
-      /* Toolkit & Results */
+      #input-bar button:hover { filter: brightness(1.1); }
       .tool-card {
         background: var(--bg);
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: 8px;
         padding: 14px;
         margin-bottom: 10px;
       }
-      .tool-name {
+      .tool-name { color: var(--accent); font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; }
+      .result-card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 14px;
+      }
+      .section-label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
         color: var(--accent);
+        font-weight: 800;
+        margin-bottom: 12px;
+      }
+      .thinking-card {
+        background: #red;
+        border-left: 3px solid #475569;
+        color: #94a3b8;
+        padding: 14px;
+        border-radius: 6px;
+        margin-bottom: 14px;
         font-size: 0.8rem;
-        font-weight: 700;
-        margin-bottom: 4px;
+        font-style: italic;
+        line-height: 1.5;
       }
-
-      .stat-table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .stat-table td {
-        padding: 8px 4px;
-        border-bottom: 1px solid #1e293b;
-        color: var(--text-muted);
-      }
-      .col-name {
-        font-weight: 600;
-        color: var(--text-main);
-      }
-
       .summary-banner {
         background: #0c4a6e;
         border-left: 3px solid #7dd3fc;
         color: #f0f9ff;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 15px;
+        padding: 14px;
+        border-radius: 6px;
+        margin-bottom: 14px;
         font-size: 0.9rem;
+        line-height: 1.5;
       }
+      .insight-card {
+        background: #064e3b;
+        border: 1px solid #059669;
+        color: #d1fae5;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 14px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+      .error-card {
+        background: #7f1d1d;
+        border: 1px solid #dc2626;
+        color: #fecaca;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 14px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+      .stat-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      .stat-table td {
+        padding: 10px 4px;
+        border-bottom: 1px solid #2d3f55;
+        font-size: 0.85rem;
+        overflow-wrap: break-word;
+      }
+      .col-name { font-weight: 600; color: var(--text-main); width: 40%; vertical-align: top; }
+      .col-value { text-align: left; color: var(--text-muted); font-family: monospace; word-break: break-word; }
     </style>
   </head>
   <body>
     <nav>
-      <div class="logo">⚡ DataSpark</div>
+      <div class="logo">⚡ DataSpark <b style="color:yellow; font-size:small;"> BETA </b></div>
       <div class="nav-links">
-        <a href="/" class="nav-link">About</a>
-        <a href="/app" class="nav-active">Launch App</a>
+        <a href="/app" class="nav-active">Dashboard</a>
       </div>
     </nav>
 
     <div id="upload-bar">
-      <label for="csv-input">📂 Upload CSV</label>
-      <input type="file" id="csv-input" accept=".csv" />
-      <span id="upload-status">No file loaded</span>
+      <label for="csv-input">Upload CSV</label>
+      <input type="file" id="csv-input" accept=".csv" style="display:none" />
+      <span id="upload-status">No file uploaded</span>
     </div>
 
     <div id="panels">
       <div class="panel" id="tool-panel">
-        <h3>🔧 Tool Calls</h3>
+        <h3>Operations</h3>
         <div id="tool-list"></div>
       </div>
-
       <div class="panel" id="result-panel">
-        <h3>📊 Result</h3>
+        <h3>Analysis Results</h3>
         <div id="result-list"></div>
       </div>
     </div>
 
     <div id="input-bar">
-      <textarea
-        id="user-input"
-        placeholder="Ask anything about your data..."
-        onkeydown="handleKey(event)"
-      ></textarea>
-      <button onclick="sendMessage()">Send</button>
+      <textarea id="user-input" placeholder="Query your data..." onkeydown="handleKey(event)"></textarea>
+      <button onclick="sendMessage()">Analyze</button>
     </div>
 
     <script>
-      const API = "http://127.0.0.1:8000";
+      var API = "http://127.0.0.1:8000";
 
-      document
-        .getElementById("csv-input")
-        .addEventListener("change", async (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-
-          const form = new FormData();
-          form.append("file", file);
-
-          document.getElementById("upload-status").textContent = "Uploading...";
-
-          try {
-            const res = await fetch(`${API}/upload`, {
-              method: "POST",
-              body: form,
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-              document.getElementById("upload-status").textContent =
-                `✓ ${data.filename} — ${data.rows} rows, ${data.columns.length} columns`;
-            } else {
-              document.getElementById("upload-status").textContent =
-                `✗ ${data.detail || "Upload failed"}`;
-            }
-          } catch (err) {
-            document.getElementById("upload-status").textContent =
-              "✗ Could not connect to backend";
-          }
-        });
+      document.getElementById("csv-input").addEventListener("change", async function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var form = new FormData();
+        form.append("file", file);
+        document.getElementById("upload-status").textContent = "Processing...";
+        try {
+          var res = await fetch(API + "/upload", { method: "POST", body: form });
+          var data = await res.json();
+          document.getElementById("upload-status").textContent = res.ok ? "✓ " + data.filename : "✗ Error";
+        } catch (err) {
+          document.getElementById("upload-status").textContent = "✗ Connection Failed";
+        }
+      });
 
       function handleKey(e) {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          sendMessage();
-        }
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
       }
 
       async function sendMessage() {
-        const input = document.getElementById("user-input");
-        const message = input.value.trim();
+        var input = document.getElementById("user-input");
+        var message = input.value.trim();
         if (!message) return;
-
         input.value = "";
 
-        document.getElementById("tool-list").innerHTML =
-          `<p class="loading">Running agent...</p>`;
-        document.getElementById("result-list").innerHTML =
-          `<p class="loading">Waiting for results...</p>`;
+        document.getElementById("tool-list").innerHTML = "<p style='color:#64748b;font-size:0.85rem;'>Agent thinking...</p>";
+        document.getElementById("result-list").innerHTML = "<p style='color:#64748b;font-size:0.85rem;'>Analyzing data...</p>";
 
         try {
-          const res = await fetch(`${API}/chat`, {
+          var res = await fetch(API + "/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ message: message })
           });
-
-          const data = await res.json();
-
-          if (!res.ok) {
-            document.getElementById("tool-list").innerHTML =
-              `<p class="loading">No tools called.</p>`;
-            document.getElementById("result-list").innerHTML =
-              `<div class="error-card">⚠️ ${data.detail || "Request failed."}</div>`;
-            return;
-          }
-
+          var data = await res.json();
           renderTools(data.tool_calls || []);
           renderResult(data);
         } catch (err) {
-          document.getElementById("tool-list").innerHTML =
-            `<p class="loading">No tools called.</p>`;
-          document.getElementById("result-list").innerHTML =
-            `<div class="error-card">⚠️ Could not connect to backend.</div>`;
+          document.getElementById("result-list").innerHTML = tag("div", "error-card", "Error: " + esc(err.message));
         }
       }
+
+      // ── Helpers ──────────────────────────────────────────────────────────────
+
+      function tag(el, cls, inner) {
+        return "<" + el + " class='" + cls + "'>" + inner + "</" + el + ">";
+      }
+
+      function esc(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function formatValue(value) {
+        if (value === null || value === undefined) return "<span style='color:#64748b'>null</span>";
+        if (typeof value === "boolean") return value ? "true" : "false";
+        if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(4);
+        if (typeof value === "string") return esc(value);
+        if (Array.isArray(value)) return value.map(formatValue).join(", ");
+        if (typeof value === "object") {
+          var rows = Object.entries(value).map(function(e) {
+            return "<tr><td class='col-name'>" + esc(e[0]) + "</td><td class='col-value'>" + formatValue(e[1]) + "</td></tr>";
+          }).join("");
+          return "<table class='stat-table'>" + rows + "</table>";
+        }
+        return esc(String(value));
+      }
+
+      // ── Renderers ─────────────────────────────────────────────────────────────
 
       function renderTools(toolCalls) {
-        const container = document.getElementById("tool-list");
-
+        var container = document.getElementById("tool-list");
         if (!toolCalls.length) {
-          container.innerHTML = `<p class="loading">No tools called.</p>`;
+          container.innerHTML = "<p style='color:#64748b;font-size:0.85rem;'>No tools called.</p>";
           return;
         }
-
-        container.innerHTML = toolCalls
-          .map(
-            (tc) => `
-              <div class="tool-card">
-                <div class="tool-name">✓ ${escapeHtml(tc.tool || "tool")}</div>
-                <div class="tool-args">${escapeHtml(JSON.stringify(tc.args || {}, null, 2))}</div>
-              </div>
-            `,
-          )
-          .join("");
-      }
-
-      function formatValue(val) {
-        if (val === null || val === undefined) return "";
-
-        if (typeof val === "number") {
-          if (Number.isInteger(val)) return String(val);
-          return val.toFixed(4);
-        }
-
-        if (typeof val === "boolean") return val ? "true" : "false";
-
-        if (typeof val === "object") {
-          return escapeHtml(JSON.stringify(val, null, 2));
-        }
-
-        let text = escapeHtml(String(val));
-
-        text = text.replace(
-          /([A-Za-z0-9)\]])\^([+-]?\d+(\.\d+)?)/g,
-          "$1<sup>$2</sup>",
-        );
-        text = text.replace(
-          /\b([+-]?\d+(\.\d+)?)e([+-]?\d+)\b/gi,
-          "$1×10<sup>$3</sup>",
-        );
-
-        return text;
-      }
-
-      function renderStatsTable(statistics) {
-        if (!statistics || !Object.keys(statistics).length) return "";
-
-        return `
-          <div class="result-card">
-            <div class="section-label">Statistics</div>
-            <table class="stat-table">
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${Object.entries(statistics)
-                  .map(
-                    ([key, value]) => `
-                      <tr>
-                        <td class="col-name">${escapeHtml(key)}</td>
-                        <td class="col-value">${formatValue(value)}</td>
-                      </tr>
-                    `,
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </div>
-        `;
+        container.innerHTML = toolCalls.map(function(tc) {
+          return "<div class='tool-card'>"
+            + "<div class='tool-name'>✓ " + esc(tc.tool || "unknown") + "</div>"
+            + "<div style='font-size:0.75rem;color:#94a3b8;font-family:monospace;white-space:pre-wrap;'>"
+            + esc(JSON.stringify(tc.args || {}, null, 2))
+            + "</div></div>";
+        }).join("");
       }
 
       function renderResult(data) {
-        const container = document.getElementById("result-list");
-        let html = "";
+        var container = document.getElementById("result-list");
+        var html = "";
 
+        // 1. Thinking
+        if (data.thinking) {
+          html += "<div class='thinking-card'>"
+            + "<strong style='color:var(--text-main);'>🧠 Thinking</strong><br/>"
+            + esc(data.thinking)
+            + "</div>";
+        }
+
+        // 2. Summary
         if (data.summary) {
-          html += `<div class="summary-banner">💬 ${escapeHtml(data.summary)}</div>`;
+          html += "<div class='summary-banner'>💬 " + esc(data.summary) + "</div>";
         }
 
-        if (data.interpretation) {
-          html += `
-            <div class="result-card">
-              <div class="section-label">Interpretation</div>
-              <div class="result-answer">${escapeHtml(data.interpretation)}</div>
-            </div>
-          `;
+        // 3. Interpretation + Statistics
+        var hasInterp = data.interpretation && data.interpretation.trim();
+        var hasStats  = data.statistics && Object.keys(data.statistics).length > 0;
+
+        if (hasInterp || hasStats) {
+          html += "<div class='result-card'>";
+
+          if (hasInterp) {
+            html += "<div class='section-label'>Interpretation</div>"
+              + "<div style='font-size:0.9rem;line-height:1.6;margin-bottom:14px;color:var(--text-main);'>"
+              + esc(data.interpretation)
+              + "</div>";
+          }
+
+          if (hasStats) {
+            var rows = Object.entries(data.statistics).map(function(e) {
+              return "<tr><td class='col-name'>" + esc(e[0]) + "</td><td class='col-value'>" + formatValue(e[1]) + "</td></tr>";
+            }).join("");
+            html += "<div class='section-label'>Statistics</div>"
+              + "<table class='stat-table'><tbody>" + rows + "</tbody></table>";
+          }
+
+          html += "</div>";
         }
 
-        html += renderStatsTable(data.statistics);
-
-        if (data.insight) {
-          html += `<div class="insight-card">💡 ${escapeHtml(data.insight)}</div>`;
+        // 4. Insight
+        if (data.insight && data.insight.trim()) {
+          html += "<div class='insight-card'>💡 <strong>Insight:</strong> " + esc(data.insight) + "</div>";
         }
 
+        // 5. Error Guidance
         if (data.error_guidance) {
-          html += `<div class="error-card">⚠️ ${escapeHtml(data.error_guidance)}</div>`;
+          html += "<div class='error-card'>⚠️ <strong>Correction:</strong> " + esc(data.error_guidance) + "</div>";
         }
 
+        // Fallback
         if (!html.trim()) {
-          html = `<p class="loading">No results.</p>`;
+          html = "<div class='result-card'><div class='section-label'>Raw Response</div>"
+            + "<pre style='font-size:0.75rem;color:var(--text-muted);white-space:pre-wrap;'>"
+            + esc(JSON.stringify(data, null, 2))
+            + "</pre></div>";
         }
 
         container.innerHTML = html;
-      }
-
-      function escapeHtml(str) {
-        return String(str)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#39;");
       }
     </script>
   </body>

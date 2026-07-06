@@ -1,20 +1,14 @@
-import io
 import json
 import os
-
-import pandas as pd
-from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from langchain_core.messages import AIMessage, ToolMessage
 
 from backend.graph import build_graph
-from backend.tools import set_dataframe
 
-load_dotenv()
-
-app = FastAPI(title="DataSpark API")
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,8 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-api_key = os.getenv("OPENAI_API_KEY")
-agent = build_graph(api_key=api_key)
+agent = build_graph()
 
 
 class ChatRequest(BaseModel):
@@ -32,107 +25,85 @@ class ChatRequest(BaseModel):
 
 
 @app.get("/")
-async def index():
-    return FileResponse(path="frontend/home.html", media_type="text/html")
+def root():
+    return FileResponse("frontend/app.html")
 
 
 @app.get("/app")
-async def launch_app():
-    return FileResponse(path="frontend/app.html", media_type="text/html")
+def dashboard():
+    return FileResponse("frontend/app.html")
 
 
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(
-            status_code=400, detail="Only CSV files are supported.")
+    import pandas as pd
+    import io
+    from backend.tools import set_dataframe
 
     contents = await file.read()
     df = pd.read_csv(io.BytesIO(contents))
-
-    # Make dataframe available to tools
     set_dataframe(df)
-
-    # send an OK response with the number of rows and columns
-    return {
-        "message": "CSV uploaded successfully.",
-        "filename": file.filename,
-        "rows": len(df),
-        "columns": list(df.columns),
-    }
+    return {"filename": file.filename, "rows": len(df), "columns": list(df.columns)}
 
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
+    import traceback
     try:
-        result = agent.invoke(
-            {
-                "messages": [("user", req.message)],
-                "dataset_type": None,
-            }
-        )
+        result = agent.invoke({
+            "messages": [("user", req.message)],
+            "dataset_type": None,
+        })
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
     messages = result.get("messages", [])
 
+    # ── Collect tool calls from the message history ──────────────────────────
     tool_calls = []
-
-    # Collect tool calls
     for msg in messages:
         if hasattr(msg, "tool_calls") and msg.tool_calls:
             for tc in msg.tool_calls:
-                tool_calls.append(
-                    {
-                        "tool": tc["name"],
-                        "args": tc["args"],
-                    }
-                )
+                tool_calls.append({"tool": tc["name"], "args": tc["args"]})
 
-    # Attach tool outputs
-    for msg in messages:
-        if getattr(msg, "name", None):
-            for tc in reversed(tool_calls):
-                if tc["tool"] == msg.name and "result" not in tc:
-                    try:
-                        tc["result"] = json.loads(msg.content)
-                    except Exception:
-                        tc["result"] = msg.content
+    # ── Find the final AIMessage and parse its JSON content ──────────────────
+    structured_data = {}
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage) and msg.content:
+            content = msg.content
+
+            # Case A: content is already a dict (rare but possible)
+            if isinstance(content, dict):
+                structured_data = content
+                break
+
+            # Case B: content is a JSON string (our case — model_dump_json())
+            if isinstance(content, str):
+                try:
+                    parsed = json.loads(content)
+                    # Make sure it looks like our AgentResponse schema
+                    if "summary" in parsed or "interpretation" in parsed:
+                        structured_data = parsed
+                        break
+                except json.JSONDecodeError:
+                    # Plain text fallback
+                    structured_data = {
+                        "summary": content,
+                        "interpretation": None,
+                        "statistics": {},
+                        "insight": None,
+                        "thinking": None,
+                        "error_guidance": None,
+                    }
                     break
 
-    final_message = ""
-
-    for msg in reversed(messages):
-        if getattr(msg, "type", "") == "ai":
-            final_message = msg.content
-            break
-
-    if not final_message and messages:
-        final_message = messages[-1].content
-
-    if isinstance(final_message, list):
-        final_message = "".join(
-            part.get("text", "") if isinstance(part, dict) else str(part)
-            for part in final_message
-        )
-
-    if final_message.startswith("```"):
-        lines = final_message.splitlines()
-        if len(lines) >= 3:
-            final_message = "\n".join(lines[1:-1])
-
-    try:
-        structured = json.loads(final_message)
-    except Exception:
-        structured = {
-            "summary": final_message,
-            "interpretation": None,
-            "statistics": {},
-            "insight": None,
-            "error_guidance": None,
-        }
-
     return {
-        "tool_calls": tool_calls,
-        **structured,
+        "thinking":       structured_data.get("thinking"),
+        "summary":        structured_data.get("summary"),
+        "interpretation": structured_data.get("interpretation"),
+        "statistics":     structured_data.get("statistics") or {},
+        "insight":        structured_data.get("insight"),
+        "error_guidance": structured_data.get("error_guidance"),
+        "tool_calls":     tool_calls,
     }
