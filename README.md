@@ -132,7 +132,8 @@ Python, Pandas, NumPy, SciPy, Statsmodels, DuckDB, PyMannKendall, LangChain Tool
 
 ## 🔧 How to use
 - Create a .env and add an OpenAI API key: OPENAI_API_KEY={your_key_here}
-- Run uvicorn main:app
+- Run: ```txt
+  uvicorn main:app```
 - Open localhost: http://127.0.0.1:8000
 
 ## 🚀🚀 Future Work
