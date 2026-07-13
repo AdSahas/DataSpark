@@ -9,7 +9,6 @@ load_dotenv()
 
 
 def run():
-    api_key = os.getenv("OPENAI_API_KEY")
     csv_path = input("CSV file path: ").strip()
 
     print("Loading CSV...")
@@ -17,7 +16,7 @@ def run():
     set_dataframe(df)
     print(f"Loaded {len(df)} rows, {len(df.columns)} columns.\n")
 
-    agent = build_graph(api_key=api_key)
+    agent = build_graph()
     conversation_history = []
     print("Data analyst ready. Type 'quit' to exit.\n")
 

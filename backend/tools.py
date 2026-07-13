@@ -11,8 +11,6 @@ import pymannkendall as mk
 from backend.transform import encode_discrete_columns, normalize_columns
 
 
-# ── RESULT SCHEMA ──────────────────────────────────────────────────────
-
 class ResultSchema(TypedDict, total=False):
     status: Literal["ok", "error"]
     data: Any
@@ -42,8 +40,6 @@ def enforce_schema(fn: Callable) -> Callable:
     return wrapper
 
 
-# ── SHARED STATE ───────────────────────────────────────────────────────
-
 _df: pd.DataFrame = None
 
 
@@ -56,8 +52,6 @@ def _require_df():
     if _df is None:
         raise RuntimeError("No dataframe loaded. Call set_dataframe() first.")
 
-
-# ── INTERNAL HELPERS ───────────────────────────────────────────────────
 
 def _shapiro(series: pd.Series) -> Dict[str, Any]:
     """Shapiro-Wilk normality test. Caps at 5000 samples."""
@@ -154,8 +148,6 @@ def _vif_scores(X: pd.DataFrame) -> Dict[str, float]:
             for i, col in enumerate(Xc.columns) if col != "const"}
 
 
-# ── CORE STATS PREPARATION ─────────────────────────────────────────────
-
 def _prepare_stats(y_col, x_cols, test_type, normalize=False):
     """Prepare + validate data. Returns _ok((X, y, data)) or _err(...)."""
     _require_df()
@@ -211,8 +203,6 @@ def _prepare_stats(y_col, x_cols, test_type, normalize=False):
     ))
     return result
 
-
-# ── DATA ANALYSIS TOOLS ────────────────────────────────────────────────
 
 @tool
 @enforce_schema
@@ -284,58 +274,17 @@ def sql_query(query: str):
     return con.execute(query).fetchdf().to_dict(orient="records")
 
 
-# ── CORRELATION PIPELINE ───────────────────────────────────────────────
-
 @tool
 @enforce_schema
-def run_correlation(col_x: str, col_y: str):
+def compare_two_groups(value_col: str, group_col: str) -> ResultSchema:
     """
-    Correlation pipeline. Auto-selects Pearson (if both vars normal)
-    or Spearman (if not), reports strength, and interprets the result.
-    """
-    prep = _prepare_stats(col_x, [col_y], "pearson")
-    if prep["status"] == "error":
-        return prep
-    _, _, data = prep["data"]
+    Compares a continuous numeric variable across exactly two distinct groups.
+    Automatically checks normality (Shapiro-Wilk) and variance equality (Levene), 
+    then runs the mathematically optimal test: Student's t, Welch's t, or Mann-Whitney U.
 
-    nx, ny = _shapiro(data[col_x]), _shapiro(data[col_y])
-    both_normal = nx["normal"] and ny["normal"]
-
-    if both_normal:
-        test, r, p = "Pearson", *stats.pearsonr(data[col_x], data[col_y])
-        coef_name = "r"
-    else:
-        test, r, p = "Spearman", *stats.spearmanr(data[col_x], data[col_y])
-        coef_name = "rho"
-
-    strength = _interpret_effect(r, [0.1, 0.3, 0.5, 0.7],
-                                 ["negligible", "weak", "moderate", "strong", "very strong"])
-    direction = "positive" if r > 0 else "negative"
-    sig = p < 0.05
-
-    return {
-        "Test Used": test,
-        "Reason": "Both variables normal" if both_normal else "Normality violated -> Spearman",
-        "Variables": [col_x, col_y],
-        "Assumptions": {"Normality X": nx, "Normality Y": ny},
-        "Statistics": {coef_name: float(r), "P-Value": float(p)},
-        "Significant": bool(sig),
-        "Interpretation": (
-            f"{strength.capitalize()} {direction} {'and significant' if sig else 'but not significant'} "
-            f"association ({coef_name}={r:.3f}, p={p:.4f})."
-        ),
-    }
-
-
-# ── INDEPENDENT TWO-GROUP PIPELINES ────────────────────────────────────
-
-@tool
-@enforce_schema
-def run_ttest_independent(value_col: str, group_col: str):
-    """
-    Independent samples t-test pipeline. Checks normality + equal variance,
-    then auto-selects Student's t or Welch's t. Reports Cohen's d.
-    Returns an error if normality is violated — use run_mann_whitney instead.
+    Args:
+        value_col: The continuous/numeric column to measure (e.g., 'mean_area').
+        group_col: The categorical/binary column defining the 2 groups (e.g., 'diagnosis').
     """
     _require_df()
     data = _df[[value_col, group_col]].dropna()
@@ -346,183 +295,63 @@ def run_ttest_independent(value_col: str, group_col: str):
 
     names = list(groups.index)
     g1, g2 = groups.iloc[0], groups.iloc[1]
+
     norm1, norm2 = _shapiro(pd.Series(g1)), _shapiro(pd.Series(g2))
     both_normal = norm1["normal"] and norm2["normal"]
-
-    if not both_normal:
-        return _err(
-            "Normality assumption violated. Use run_mann_whitney instead.",
-            diagnostics={"normality_g1": norm1, "normality_g2": norm2}
-        )
-
     lev = _levene([g1, g2])
-    if lev["equal_variance"]:
-        test, reason = "Student's t-test", "Equal variances"
-        stat, p = stats.ttest_ind(g1, g2, equal_var=True)
-    else:
-        test, reason = "Welch's t-test", "Unequal variances -> Welch correction"
-        stat, p = stats.ttest_ind(g1, g2, equal_var=False)
 
-    effect = _cohens_d(g1, g2)
+    if both_normal:
+        if lev["equal_variance"]:
+            test, reason = "Student's t-test", "Both groups normal + equal variances (Parametric)"
+            stat, p = stats.ttest_ind(g1, g2, equal_var=True)
+        else:
+            test, reason = "Welch's t-test", "Both groups normal but unequal variances -> Welch correction"
+            stat, p = stats.ttest_ind(g1, g2, equal_var=False)
+        effect = _cohens_d(g1, g2)
+        stat_name = "T Statistic"
+        metric_name, metric_vals = "Means", [
+            float(np.mean(g1)), float(np.mean(g2))]
+        effect_str = f"{effect['magnitude']} effect (d={effect['value']:.3f})"
+    else:
+        test, reason = "Mann-Whitney U", "Normality assumption violated -> Swapped to Nonparametric"
+        stat, p = stats.mannwhitneyu(g1, g2, alternative="two-sided")
+        n1, n2 = len(g1), len(g2)
+        rb_r = 1 - (2 * stat) / (n1 * n2)
+        effect = {
+            "name": "Rank-biserial r",
+            "value": float(rb_r),
+            "magnitude": _interpret_effect(rb_r, [0.1, 0.3, 0.5], ["negligible", "small", "medium", "large"])
+        }
+        stat_name = "U Statistic"
+        metric_name, metric_vals = "Medians", [
+            float(np.median(g1)), float(np.median(g2))]
+        effect_str = f"{effect['magnitude']} effect (r={effect['value']:.3f})"
+
     sig = p < 0.05
-    return {
+    return _ok({
         "Test Used": test,
-        "Reason": reason,
+        "Routing Logic": reason,
         "Groups": names,
         "Group Sizes": [len(g1), len(g2)],
-        "Means": [float(np.mean(g1)), float(np.mean(g2))],
-        "Assumptions": {"Normality": [norm1, norm2], "Equal Variance": lev},
-        "Statistics": {"T Statistic": float(stat), "P-Value": float(p)},
+        metric_name: metric_vals,
+        "Statistics": {stat_name: float(stat), "P-Value": float(p)},
         "Effect Size": effect,
         "Significant": bool(sig),
-        "Interpretation": (
-            f"{names[0]} (M={np.mean(g1):.2f}) vs {names[1]} (M={np.mean(g2):.2f}): "
-            f"{'significant' if sig else 'no significant'} difference (p={p:.4f}), "
-            f"{effect['magnitude']} effect (d={effect['value']:.3f})."
-        ),
-    }
+        "Interpretation": f"{names[0]} vs {names[1]} ({metric_name.lower()}): {'significant' if sig else 'no significant'} difference (p={p:.4f}), matching a {effect_str}."
+    }, diagnostics={"normality": [norm1, norm2], "equal_variance": lev})
 
 
 @tool
 @enforce_schema
-def run_mann_whitney(value_col: str, group_col: str):
+def compare_multi_groups(value_col: str, group_col: str) -> ResultSchema:
     """
-    Mann-Whitney U test pipeline (nonparametric two-group comparison).
-    Use when normality is violated. Reports rank-biserial r as effect size.
-    """
-    _require_df()
-    data = _df[[value_col, group_col]].dropna()
-    groups, err = _validate_groups(
-        data, value_col, group_col, min_groups=2, max_groups=2)
-    if err:
-        return err
+    Compares a continuous numeric variable across 3 or more distinct groups.
+    Automatically verifies parametric assumptions across all groups, then routes
+    to One-way ANOVA or a nonparametric Kruskal-Wallis H test.
 
-    names = list(groups.index)
-    g1, g2 = groups.iloc[0], groups.iloc[1]
-    norm1, norm2 = _shapiro(pd.Series(g1)), _shapiro(pd.Series(g2))
-
-    stat, p = stats.mannwhitneyu(g1, g2, alternative="two-sided")
-    n1, n2 = len(g1), len(g2)
-    rb_r = 1 - (2 * stat) / (n1 * n2)
-    effect = {
-        "name": "Rank-biserial r",
-        "value": float(rb_r),
-        "magnitude": _interpret_effect(rb_r, [0.1, 0.3, 0.5],
-                                       ["negligible", "small", "medium", "large"])
-    }
-
-    sig = p < 0.05
-    return {
-        "Test Used": "Mann-Whitney U",
-        "Groups": names,
-        "Group Sizes": [len(g1), len(g2)],
-        "Medians": [float(np.median(g1)), float(np.median(g2))],
-        "Assumptions": {"Normality G1": norm1, "Normality G2": norm2},
-        "Statistics": {"U Statistic": float(stat), "P-Value": float(p)},
-        "Effect Size": effect,
-        "Significant": bool(sig),
-        "Interpretation": (
-            f"{names[0]} (Mdn={np.median(g1):.2f}) vs {names[1]} (Mdn={np.median(g2):.2f}): "
-            f"{'significant' if sig else 'no significant'} difference (p={p:.4f}), "
-            f"{effect['magnitude']} effect (r={rb_r:.3f})."
-        ),
-    }
-
-
-# ── PAIRED PIPELINE ────────────────────────────────────────────────────
-
-@tool
-@enforce_schema
-def run_ttest_paired(col_a: str, col_b: str):
-    """
-    Paired comparison pipeline. Checks normality of differences, then
-    auto-selects paired t-test or Wilcoxon signed-rank. Reports Cohen's dz.
-    """
-    prep = _prepare_stats(col_a, [col_b], "ttest_paired")
-    if prep["status"] == "error":
-        return prep
-    _, _, data = prep["data"]
-    if len(data) < 3:
-        return _err("Need at least 3 pairs")
-
-    diff = (data[col_a] - data[col_b]).values
-    norm = _shapiro(pd.Series(diff))
-
-    if norm["normal"]:
-        test, reason = "Paired t-test", "Differences normal"
-        stat, p = stats.ttest_rel(data[col_a], data[col_b])
-        stat_name = "t_statistic"
-    else:
-        test, reason = "Wilcoxon signed-rank", "Differences non-normal -> nonparametric"
-        stat, p = stats.wilcoxon(data[col_a], data[col_b])
-        stat_name = "w_statistic"
-
-    sd = np.std(diff, ddof=1)
-    dz = float(np.mean(diff) / sd) if sd else None
-    sig = p < 0.05
-    return {
-        "Test Used": test,
-        "Reason": reason,
-        "Variables": [col_a, col_b],
-        "N Pairs": len(data),
-        "Mean Diff": float(np.mean(diff)),
-        "Assumptions": {"Normality of Differences": norm},
-        "Statistics": {stat_name: float(stat), "P-Value": float(p)},
-        "Effect Size": {"name": "Cohen's dz", "value": dz,
-                        "magnitude": _interpret_effect(dz or 0, [0.2, 0.5, 0.8],
-                                                       ["negligible", "small", "medium", "large"])},
-        "Significant": bool(sig),
-        "Interpretation": (
-            f"Mean difference {np.mean(diff):.3f}: "
-            f"{'significant' if sig else 'no significant'} change (p={p:.4f})."
-        ),
-    }
-
-
-@tool
-@enforce_schema
-def run_ttest_onesample(column: str, test_value: float = 0):
-    """One-sample test pipeline. Auto-selects t-test or Wilcoxon vs a fixed value."""
-    _require_df()
-    if column not in _df.columns:
-        return _err(f"Column '{column}' not found")
-    series = _df[column].dropna()
-    if len(series) < 3:
-        return _err("Need at least 3 samples")
-
-    norm = _shapiro(series)
-    if norm["normal"]:
-        test, reason = "One-sample t-test", "Data normal"
-        stat, p = stats.ttest_1samp(series, test_value)
-        stat_name = "t_statistic"
-    else:
-        test, reason = "Wilcoxon signed-rank", "Non-normal -> nonparametric"
-        stat, p = stats.wilcoxon(series - test_value)
-        stat_name = "w_statistic"
-
-    sig = p < 0.05
-    return {
-        "Test Used": test, "Reason": reason, "Column": column, "Test Value": test_value,
-        "Sample Mean": float(series.mean()), "N": len(series),
-        "Assumptions": {"Normality": norm},
-        "Statistics": {stat_name: float(stat), "P-Value": float(p)},
-        "Significant": bool(sig),
-        "Interpretation": (
-            f"Sample mean {series.mean():.3f} vs {test_value}: "
-            f"{'significant' if sig else 'no significant'} difference (p={p:.4f})."
-        ),
-    }
-
-
-# ── MULTI-GROUP PIPELINE (ANOVA / KRUSKAL) ─────────────────────────────
-
-@tool
-@enforce_schema
-def run_anova(value_col: str, group_col: str):
-    """
-    Multi-group mean comparison pipeline (3+ groups). Checks normality of
-    every group + equal variance, then auto-selects one-way ANOVA or
-    Kruskal-Wallis. Reports eta-squared / epsilon-squared and interprets.
+    Args:
+        value_col: The continuous/numeric metrics column to analyze.
+        group_col: The categorical column containing 3+ group identifiers.
     """
     _require_df()
     data = _df[[value_col, group_col]].dropna()
@@ -539,44 +368,37 @@ def run_anova(value_col: str, group_col: str):
     k = len(groups)
 
     if all_normal and lev["equal_variance"]:
-        test, reason = "One-way ANOVA", "Assumptions met"
+        test, reason = "One-way ANOVA", "Parametric assumptions met across all groups."
         stat, p = stats.f_oneway(*groups.values)
-        stat_name = "f_statistic"
+        stat_name = "F Statistic"
         effect = _eta_squared(groups)
     else:
-        test = "Kruskal-Wallis H"
-        reason = "Normality/variance assumptions violated -> nonparametric"
+        test, reason = "Kruskal-Wallis H", "Normality or variance thresholds violated -> Nonparametric fallback."
         stat, p = stats.kruskal(*groups.values)
-        stat_name = "h_statistic"
+        stat_name = "H Statistic"
         effect = _epsilon_squared(stat, n_total, k)
 
     sig = p < 0.05
-    return {
+    return _ok({
         "Test Used": test,
-        "Reason": reason,
-        "# of groups": k,
+        "Routing Logic": reason,
+        "Number of Groups": k,
         "Group Sizes": {str(n): len(v) for n, v in groups.items()},
         "Group Means": {str(n): float(np.mean(v)) for n, v in groups.items()},
-        "Assumptions": {"Normality": normality, "Equal Variance": lev},
         "Statistics": {stat_name: float(stat), "P-Value": float(p)},
         "Effect Size": effect,
         "Significant": bool(sig),
-        "Interpretation": (
-            f"{'Significant' if sig else 'No significant'} differences across {k} groups "
-            f"(p={p:.4f}), {effect['magnitude']} effect."
-        ),
-    }
+        "Interpretation": f"{'Significant' if sig else 'No significant'} global differences found across the {k} groups (p={p:.4f}), yielding a {effect['magnitude']} effect size."
+    }, diagnostics={"normality": normality, "equal_variance": lev})
 
-
-# ── CATEGORICAL ASSOCIATION PIPELINE ───────────────────────────────────
 
 @tool
 @enforce_schema
-def run_chi_squared(col_a: str, col_b: str):
+def compare_categorical_association(col_a: str, col_b: str) -> ResultSchema:
     """
-    Categorical association pipeline. Builds the contingency table, checks
-    the expected-frequency assumption, and auto-falls back to Fisher's Exact
-    for 2x2 tables when cells are sparse. Reports Cramér's V.
+    Analyzes the statistical association between two discrete categorical columns.
+    Builds a contingency matrix and safely drops back to Fisher's Exact Test 
+    if cell counts are sparse inside a 2x2 grid.
     """
     prep = _prepare_stats(col_a, [col_b], "chi2")
     if prep["status"] == "error":
@@ -590,209 +412,201 @@ def run_chi_squared(col_a: str, col_b: str):
 
     if not assumption_ok and table.shape == (2, 2):
         odds, p = stats.fisher_exact(table.values)
-        test, reason = "Fisher's Exact", "Sparse cells in 2x2 -> exact test"
-        stat_block = {"odds_ratio": float(odds), "p_value": float(p)}
+        test, reason = "Fisher's Exact Test", "Sparse frequencies detected inside a 2x2 table grid."
+        stat_block = {"Odds Ratio": float(odds), "P-Value": float(p)}
     else:
-        test = "Chi-squared (independence)"
-        reason = ("Assumption met" if assumption_ok
-                  else f"{small_cells} cells with expected<5 (interpret with caution)")
-        stat_block = {"chi2_statistic": float(chi2), "p_value": float(p),
-                      "degrees_of_freedom": int(dof)}
+        test = "Chi-squared Test of Independence"
+        reason = "Standard structural cell criteria satisfied." if assumption_ok else f"Warning: {small_cells} matrix blocks with expected values < 5."
+        stat_block = {"Chi2 Statistic": float(
+            chi2), "P-Value": float(p), "Degrees of Freedom": int(dof)}
 
     effect = _cramers_v(table, chi2)
     sig = p < 0.05
-    return {
+
+    return _ok({
         "Test Used": test,
-        "Reason": reason,
+        "Routing Logic": reason,
         "Variables": [col_a, col_b],
-        "Assumptions": {"Cells Expected < 5": small_cells, "Assumption Met": assumption_ok},
+        "Contingency Table": table.to_dict(orient="index"),
         "Statistics": stat_block,
         "Effect Size": effect,
         "Significant": bool(sig),
-        "Interpretation": (
-            f"{'Significant' if sig else 'No significant'} association (p={p:.4f}), "
-            f"{effect['magnitude']} strength."
-        ),
-    }
+        "Interpretation": f"{'Significant' if sig else 'No significant'} association found between columns (p={p:.4f}, Cramér's V strength: {effect['magnitude']})."
+    }, diagnostics={"cells_expected_under_5": small_cells, "assumptions_passed": assumption_ok})
 
 
 @tool
 @enforce_schema
-def run_chi_squared_gof(column: str, expected_freq: Dict[str, float] = None):
-    """Chi-squared goodness-of-fit pipeline (observed vs expected distribution)."""
-    _require_df()
-    if column not in _df.columns:
-        return _err(f"Column '{column}' not found")
+def run_regression(y_col: str, x_cols: List[str]) -> ResultSchema:
+    """
+    Unified regression pipeline. Automatically detects the type of target variable (y_col)
+    and routes to the correct model structure:
+    - Linear Regression (OLS): For continuous numeric target variables.
+    - Logistic Regression: For binary categorical target variables.
 
-    observed = _df[column].value_counts().sort_index()
-    if expected_freq is None:
-        expected = np.array([len(_df) / len(observed)] * len(observed))
+    Automatically handles data preparation, feature normalization, multicollinearity checking,
+    and calculates model diagnostics (VIF, residual normality, and homoscedasticity).
+
+    Args:
+        y_col: The target/dependent variable to predict.
+        x_cols: List of predictor/independent variables.
+    """
+    _require_df()
+
+    if y_col not in _df.columns:
+        return _err(f"Target column '{y_col}' not found")
+
+    y_series = _df[y_col].dropna()
+    distinct_count = y_series.nunique()
+
+    if distinct_count == 2:
+        test_type = "logistic"
+        reason = "Target variable is binary (categorical/discrete). Automated routing to Logistic Regression."
+    elif pd.api.types.is_numeric_dtype(y_series):
+        test_type = "linear"
+        reason = "Target variable is continuous numeric data. Automated routing to Linear Regression (OLS)."
     else:
-        expected = np.array([expected_freq.get(str(cat), 0)
-                            for cat in observed.index], dtype=float)
-        if expected.sum() == 0:
-            return _err("Provided expected frequencies sum to zero")
-        expected = expected / expected.sum() * observed.sum()
+        return _err(f"Target column '{y_col}' must be either numeric (for Linear) or binary (for Logistic). Found type: {y_series.dtype}")
 
-    small_cells = int((expected < 5).sum())
-    chi2, p = stats.chisquare(observed, expected)
-    sig = p < 0.05
-    return {
-        "Test Used": "Chi-squared (goodness-of-fit)",
-        "Column": column,
-        "# of categories": len(observed),
-        "Assumptions": {"cells_expected_lt_5": small_cells},
-        "Statistics": {"chi2_statistic": float(chi2), "p_value": float(p)},
-        "Significant": bool(sig),
-        "Interpretation": (
-            f"Observed distribution {'differs' if sig else 'does not differ'} "
-            f"from expected (p={p:.4f})."
-        ),
-    }
-
-
-# ── REGRESSION PIPELINES ───────────────────────────────────────────────
-
-@tool
-@enforce_schema
-def linear_regression(y_col: str, x_col: List[str]):
-    """
-    OLS regression pipeline. Normalizes predictors, guards against
-    multicollinearity, fits the model, and returns VIF, residual normality
-    (Shapiro), and heteroscedasticity (Breusch-Pagan) diagnostics.
-    """
-    prep = _prepare_stats(y_col, x_col, "linear", normalize=True)
+    prep = _prepare_stats(y_col, x_cols, test_type, normalize=True)
     if prep["status"] == "error":
         return prep
     X, y, _ = prep["data"]
 
-    model = sm.OLS(y, sm.add_constant(X)).fit()
-    resid = model.resid
+    if test_type == "linear":
+        model = sm.OLS(y, sm.add_constant(X)).fit()
+        resid = model.resid
 
-    diagnostics = {"VIF": _vif_scores(X) if len(x_col) > 1 else "N/A (single predictor)",
-                   "Residual Normality": _shapiro(pd.Series(resid))}
-    try:
-        from statsmodels.stats.diagnostic import het_breuschpagan
-        bp = het_breuschpagan(resid, sm.add_constant(X))
-        diagnostics["Heteroscedasticity"] = {"LM P-Value": float(bp[1]),
-                                             "Homoscedastic": bool(bp[1] > 0.05)}
-    except Exception as e:
-        diagnostics["Heteroscedasticity"] = f"unavailable: {e}"
+        diagnostics = {
+            "Model Type Determined": "Linear (OLS)",
+            "VIF": _vif_scores(X) if len(x_cols) > 1 else "N/A (single predictor)",
+            "Residual Normality": _shapiro(pd.Series(resid))
+        }
+        try:
+            from statsmodels.stats.diagnostic import het_breuschpagan
+            bp = het_breuschpagan(resid, sm.add_constant(X))
+            diagnostics["Heteroscedasticity"] = {
+                "LM P-Value": float(bp[1]), "Homoscedastic": bool(bp[1] > 0.05)}
+        except Exception as e:
+            diagnostics["Heteroscedasticity"] = f"Unavailable: {e}"
 
-    return _ok({
-        "R²": float(model.rsquared),
-        "Adj R²": float(model.rsquared_adj),
-        "F stat": float(model.fvalue),
-        "F P-value": float(model.f_pvalue),
-        "Coefficients": model.params.to_dict(),
-        "P-Values": model.pvalues.to_dict(),
-        "Significant": bool(model.f_pvalue < 0.05),
-        "Interpretation": (
-            f"Model explains {model.rsquared:.1%} of variance "
-            f"({'significant' if model.f_pvalue < 0.05 else 'not significant'}, "
-            f"F p={model.f_pvalue:.4f})."
-        ),
-    }, diagnostics=diagnostics)
+        return _ok({
+            "Test Used": "Linear Regression (OLS)",
+            "Routing Logic": reason,
+            "R²": float(model.rsquared),
+            "Adj R²": float(model.rsquared_adj),
+            "F stat": float(model.fvalue),
+            "F P-value": float(model.f_pvalue),
+            "Coefficients": model.params.to_dict(),
+            "P-Values": model.pvalues.to_dict(),
+            "Significant": bool(model.f_pvalue < 0.05),
+            "Interpretation": f"Model explains {model.rsquared:.1%} of variance ({'significant' if model.f_pvalue < 0.05 else 'not significant'}, F p={model.f_pvalue:.4f})."
+        }, diagnostics=diagnostics)
 
+    else:
+        model = sm.Logit(y, sm.add_constant(X)).fit(disp=False)
+        diagnostics = {
+            "Model Type Determined": "Logistic (Logit)",
+            "VIF": _vif_scores(X) if len(x_cols) > 1 else "N/A (single predictor)",
+            "Class Balance": y.value_counts(normalize=True).round(3).to_dict()
+        }
 
-@tool
-@enforce_schema
-def logistic_regression(y_col: str, x_col: List[str]):
-    """
-    Logistic regression pipeline. Validates/encodes a binary target,
-    normalizes predictors, guards multicollinearity, and returns odds
-    ratios, VIF, and class balance.
-    """
-    prep = _prepare_stats(y_col, x_col, "logistic", normalize=True)
-    if prep["status"] == "error":
-        return prep
-    X, y, _ = prep["data"]
-
-    model = sm.Logit(y, sm.add_constant(X)).fit(disp=False)
-    diagnostics = {"VIF": _vif_scores(X) if len(x_col) > 1 else "N/A (single predictor)",
-                   "Class Balance": y.value_counts(normalize=True).round(3).to_dict()}
-
-    return _ok({
-        "LLF": float(model.llf),
-        "AIC": float(model.aic),
-        "Pseudo R²": float(model.prsquared),
-        "Coefficients": model.params.to_dict(),
-        "Odds Ratios": np.exp(model.params).round(4).to_dict(),
-        "P-Values": model.pvalues.to_dict(),
-        "Interpretation": f"Pseudo R²={model.prsquared:.3f}, AIC={model.aic:.1f}.",
-    }, diagnostics=diagnostics)
-
-
-# ── TREND & CURVE PIPELINES ────────────────────────────────────────────
-
-@tool
-@enforce_schema
-def detect_trends(x_col: str, y_col: str):
-    """Mann-Kendall monotonic trend pipeline (sorts by x, tests y for trend)."""
-    _require_df()
-    d = _df[[x_col, y_col]].dropna().sort_values(x_col)
-    if len(d) < 3:
-        return _err("Not enough data (min 3 rows)")
-
-    res = mk.original_test(d[y_col].to_numpy())
-    return {
-        "Trend": res.trend,
-        "Significant": bool(res.p < 0.05),
-        "P value": float(res.p),
-        "Tau": float(res.Tau),
-        "Slope": float(res.slope),
-        "Interpretation": (
-            f"{'Significant' if res.p < 0.05 else 'No significant'} "
-            f"{res.trend} monotonic trend (tau={res.Tau:.3f}, p={res.p:.4f})."
-        ),
-    }
+        return _ok({
+            "Test Used": "Logistic Regression",
+            "Routing Logic": reason,
+            "LLF": float(model.llf),
+            "AIC": float(model.aic),
+            "Pseudo R²": float(model.prsquared),
+            "Coefficients": model.params.to_dict(),
+            "Odds Ratios": np.exp(model.params).round(4).to_dict(),
+            "P-Values": model.pvalues.to_dict(),
+            "Interpretation": f"Logistic fit achieved. Pseudo R²={model.prsquared:.3f}, AIC={model.aic:.1f}."
+        }, diagnostics=diagnostics)
 
 
 @tool
 @enforce_schema
-def fit_curves(col_a: str, col_b: str, degree: int = 4):
+def analyze_trend_and_curve(x_col: str, y_col: str, max_degree: int = 4) -> ResultSchema:
     """
-    Polynomial curve-fitting pipeline. Fits degrees 1..N, compares by
-    adjusted R², and returns the best model plus a shape interpretation.
+    Unified trend and curve-fitting pipeline. Investigates the relationship between 
+    an independent variable (x_col) and a dependent variable (y_col) by running:
+    1. A Mann-Kendall monotonic trend test (to identify overall directional drift).
+    2. A polynomial curve-fitting optimizer (to detect linear, quadratic, cubic, or complex shapes).
+
+    Automatically handles sorting, handles missing data dropping, and selects the optimal curve model 
+    based on the highest Adjusted R² score.
     """
     _require_df()
-    if col_a not in _df.columns or col_b not in _df.columns:
-        return _err("Columns not found")
 
-    data = _df[[col_a, col_b]].dropna().sort_values(col_a)
-    x, y = data[col_a].values.astype(float), data[col_b].values.astype(float)
+    if x_col not in _df.columns or y_col not in _df.columns:
+        return _err(f"Columns '{x_col}' or '{y_col}' not found in dataset")
+
+    data = _df[[x_col, y_col]].dropna().sort_values(x_col)
+    x = data[x_col].values.astype(float)
+    y = data[y_col].values.astype(float)
     n = len(x)
+
     if n < 5:
-        return _err("Need at least 5 points to fit curves")
+        return _err(f"Not enough data points (found {n}, min 5 required for reliable trend/curve fitting)")
+
+    try:
+        mk_res = mk.original_test(y)
+        trend_analysis = {
+            "Detected Trend": mk_res.trend,
+            "Significant": bool(mk_res.p < 0.05),
+            "P-Value": float(mk_res.p),
+            "Tau (Direction Strength)": float(mk_res.Tau),
+            "Theil-Sen Slope": float(mk_res.slope)
+        }
+    except Exception as e:
+        trend_analysis = {"Error evaluating monotonic trend": str(e)}
 
     xs = (x - x.mean()) / (x.std() or 1)
-    results = {}
-    for d in range(1, degree + 1):
+    curve_results = {}
+
+    for d in range(1, max_degree + 1):
         if n <= d + 1:
             break
         coeffs = np.polyfit(xs, y, d)
         y_pred = np.poly1d(coeffs)(xs)
         ss_res = np.sum((y - y_pred) ** 2)
         ss_tot = np.sum((y - y.mean()) ** 2)
+
         r2 = 1 - ss_res / ss_tot if ss_tot else 0.0
         adj_r2 = 1 - (1 - r2) * (n - 1) / (n - d - 1) if n - d - 1 > 0 else r2
-        results[d] = {"coefficients": coeffs.tolist(
-        ), "r2": float(r2), "adj_r2": float(adj_r2)}
 
-    if not results:
-        return _err("Not enough data to fit any model")
+        curve_results[d] = {
+            "coefficients": coeffs.tolist(),
+            "r2": float(r2),
+            "adj_r2": float(adj_r2)
+        }
 
-    best_deg, best = max(results.items(), key=lambda kv: kv[1]["adj_r2"])
-    shape = {1: "linear", 2: "quadratic (single bend)", 3: "cubic (S-shaped)"}.get(
-        best_deg, f"degree-{best_deg} (multiple bends)")
+    if not curve_results:
+        return _err("Data structure insufficient to fit polynomial vectors.")
 
-    return {
-        "Variable X": col_a,
-        "Variable Y": col_b,
-        "Models": results,
-        "Best Model": {"degree": best_deg, "r2": best["r2"], "adj_r2": best["adj_r2"]},
-        "Interpretation": (
-            f"Best fit is a {shape} relationship "
-            f"(adj R²={best['adj_r2']:.4f}, R²={best['r2']:.4f})."
-        ),
-    }
+    best_deg, best = max(curve_results.items(), key=lambda kv: kv[1]["adj_r2"])
+    shape_desc = {1: "linear", 2: "quadratic (single bend/parabola)", 3: "cubic (S-shaped curve)"}.get(
+        best_deg, f"degree-{best_deg} polynomial (multiple complex bends)"
+    )
+
+    sig_trend = trend_analysis.get("Significant", False)
+    trend_str = f"a significant {trend_analysis.get('Detected Trend')} monotonic trend (p={trend_analysis.get('P-Value'):.4f})" if sig_trend else "no consistent monotonic trend"
+
+    interpretation = (
+        f"Analysis shows {trend_str}. When evaluating structural shape, the data is best modeled by a "
+        f"{shape_desc} relationship (Best Adjusted R² = {best['adj_r2']:.4f}, raw R² = {best['r2']:.4f})."
+    )
+
+    return _ok({
+        "Test Purpose": "Trend Directionality & Geometric Curve Estimation",
+        "Data Points Evaluated": n,
+        "Monotonic Trend Summary": trend_analysis,
+        "Tested Curve Models": curve_results,
+        "Optimal Curve Choice": {
+            "Best Degree": best_deg,
+            "Mathematical Shape": shape_desc,
+            "R²": best["r2"],
+            "Adjusted R²": best["adj_r2"]
+        },
+        "Interpretation": interpretation
+    })

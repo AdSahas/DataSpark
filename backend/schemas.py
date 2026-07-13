@@ -1,11 +1,13 @@
 from langgraph.graph import add_messages
-from typing import Annotated, TypedDict
+from typing import Annotated, Optional, TypedDict, Literal
 
 from pydantic import BaseModel, Field
 
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
+    next: Optional[str]
+    loop_counter: int = 0
 
 
 class AgentResponse(BaseModel):
@@ -21,3 +23,12 @@ class AgentResponse(BaseModel):
         default="", description="One actionable insight or pattern worth noting.")
     error_guidance: str | None = Field(
         default=None, description="If there was an error in the user's request, provide guidance on how to correct it. If there was no error, this should be null.")
+
+
+class RouterSchema(BaseModel):
+    next_agent: Literal['data_node', 'stats_node', 'FINISH'] = Field(
+        description="The next node to call. Choose FINISH ONLY if there is nothing else to do."
+    )
+    reasoning: str = Field(
+        description="Brief justification for why this agent or action was selected next."
+    )
