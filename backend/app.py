@@ -30,7 +30,13 @@ def run():
         conversation_history.append(HumanMessage(content=user_input))
         print("\n--- agent trace ---")
 
-        result = agent.invoke({"messages": conversation_history})
+        result = agent.invoke({
+            "messages": conversation_history,
+            "next_node": None,
+            "loop_counter": 0,
+            "active_agent": None,
+            "schema_loaded": False,
+        })
 
         conversation_history = result["messages"]
         print("\n")

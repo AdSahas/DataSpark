@@ -6,7 +6,6 @@ from backend.tools import (
     detect_outliers,
     classify_dataset,
     sql_query,
-
     compare_two_groups,
     compare_multi_groups,
     compare_categorical_association,
@@ -19,14 +18,15 @@ from backend.guardrails import block_invalid_tool_calls, validate_output
 import json
 
 from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from dotenv import load_dotenv
-
+from backend.prompts.supervisor_prompt_v1 import SUPERVISOR_PROMPT
 
 load_dotenv()
+
 STAT_TOOLS = [
     compare_two_groups,
     compare_multi_groups,
@@ -47,42 +47,69 @@ DATA_TOOLS = [
 
 ALL_TOOLS = DATA_TOOLS + STAT_TOOLS
 
-# prompts
-SUPERVISOR_PROMPT = """You are the Lead Data Scientist Supervisor managing two specialized units:
-1. data_fetcher: Best for querying databases, checking schemas, exploring basic column stats, and pulling raw data samples.
-2. statistical_analyst: Best for advanced mathematical tests (ANOVA, T-Tests, Regressions, Outlier/Trend detection).
-
-Your job is to evaluate the conversation history and dynamically assign the next step:
-- ALWAYS ensure the data_fetcher calls get_schema() first if schema context is missing.
-- If data needs to be queried/fetched before advanced analysis can occur, route to data_fetcher.
-- CRITICAL: If the user's request is purely informational (e.g., "describe the data", "show me the schema", "what columns do we have?") and the data_fetcher has already pulled the schema/samples, do NOT route to statistical_analyst. Route directly to FINISH so the final summary can be built.
-- Once enough data, queries, and statistical calculations have run to fully answer the user, select FINISH.
-- IF THE USER'S QUESTION IS IRRELEVANT TO STATISTICAL ANALYSIS OR DATA ANALYSIS, ROUTE DIRECTLY TO FINISH AND STATE THAT THE REQUEST WAS OUTSIDE THE SCOPE OF DATA AND STATISTICAL ANALYSIS.
-"""
+ALLOWED_TOOLS = {
+    "data_node": {tool.name for tool in DATA_TOOLS},
+    "stats_node": {tool.name for tool in STAT_TOOLS},
+}
 
 DATA_NODE_PROMPT = """You are a Data Retrieval Assistant specialized in exploring datasets and pulling records.
 Your only job is to use your tools to provide raw data, sample structures, schemas, or SQL results.
 Do not perform advanced statistical analysis or run regressions yourself.
+IMPORTANT: You MUST call at least one tool. Do not respond with plain text.
+Call only the tools you need — do not call multiple tools speculatively.
 """
 
 STATS_NODE_PROMPT = """You are a Statistics Expert specialized in mathematical calculations, hypotheses testing, and analytics.
-Your only job is to run analytical models(regressions, t-tests, correlations) on the columns provided.
+Your only job is to run analytical models (regressions, t-tests, correlations) on the columns provided.
 If a tool rejects your request due to an assumption violation, adapt by picking an alternative compatible tool.
+IMPORTANT: You MUST call at least one tool. Do not respond with plain text.
+Call only the tools you need — do not call multiple tools speculatively.
 """
 
 FINAL_OUTPUT_PROMPT = """You are a data analyst summarizing findings for the user.
 Format your final analysis exactly according to the structured output parameters required.
-IF THE USER'S QUESTION WAS IRRELEVANT TO STATISTICAL ANALYSIS OR DATA ANALYSIS, 
+IF THE USER'S QUESTION WAS IRRELEVANT TO STATISTICAL ANALYSIS OR DATA ANALYSIS,
 PROVIDE A NOTE IN "Summary" STATING THAT YOU CANNOT HELP WITH REQUESTS OUTSIDE THE SCOPE OF DATA AND STATISTICAL ANALYSIS, AND LEAVE ALL OTHER FIELDS EMPTY.
-
 """
 
-# graph builder
+MAX_LOOPS = 10
+
+
+def has_unresolved_tool_calls(messages: list) -> bool:
+    """Check if any AIMessage tool_calls lack a matching ToolMessage."""
+    resolved_ids = {
+        msg.tool_call_id
+        for msg in messages
+        if isinstance(msg, ToolMessage)
+    }
+    for msg in messages:
+        if isinstance(msg, AIMessage):
+            for tc in getattr(msg, "tool_calls", []):
+                if tc["id"] not in resolved_ids:
+                    return True
+    return False
+
+
+def sanitize_messages_for_llm(messages: list) -> list:
+    """Drop AIMessages with unresolved tool_calls so OpenAI doesn't reject the request."""
+    resolved_ids = {
+        msg.tool_call_id
+        for msg in messages
+        if isinstance(msg, ToolMessage)
+    }
+    clean = []
+    for msg in messages:
+        if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", []):
+            unresolved = [tc for tc in msg.tool_calls if tc["id"]
+                          not in resolved_ids]
+            if unresolved:
+                continue  # drop message entirely if any tool call is unresolved
+        clean.append(msg)
+    return clean
 
 
 def build_graph(model: str = "gpt-4o"):
 
-    # base configuration for standard LLM actions
     base_model = ChatOpenAI(
         model=model,
         temperature=0.2,
@@ -90,67 +117,104 @@ def build_graph(model: str = "gpt-4o"):
         callbacks=[StreamingStdOutCallbackHandler()],
     )
 
-    # nodes
+    # instantiate once, not on every tool call
+    data_tool_node = ToolNode(DATA_TOOLS)
+    stats_tool_node = ToolNode(STAT_TOOLS)
+
+    # --- nodes ---
 
     def supervisor_node(state: AgentState):
-        if state.get("loop_counter", 0) >= 6:
+        if state.get("loop_counter", 0) >= MAX_LOOPS:
+            print("\n[SUPERVISOR] Loop limit reached. Routing to final output.\n")
+            return {"next_node": "FINISH"}
+
+        if has_unresolved_tool_calls(state["messages"]):
             print(
-                "\n[SUPERVISOR] Loop limit reached. Routing to final output.\n")
-            return {"next": "FINISH"}
+                "\n[SUPERVISOR] Unresolved tool calls detected — re-routing to active agent.\n")
+            active = state.get("active_agent", "data_node")
+            return {"next_node": active}
 
-        # enforce a low temperature structured output to prevent routing hallucination
         supervisor_llm = ChatOpenAI(
-            model=model, temperature=0.0).with_structured_output(RouterSchema)
-        messages = [SystemMessage(
-            content=SUPERVISOR_PROMPT)] + state["messages"]
+            model=model, temperature=0.0
+        ).with_structured_output(RouterSchema)
 
+        clean_messages = sanitize_messages_for_llm(state["messages"])
+        messages = [SystemMessage(content=SUPERVISOR_PROMPT)] + clean_messages
         response = supervisor_llm.invoke(messages)
         print(
             f"\n[SUPERVISOR] Next: {response.next_agent} | Reason: {response.reasoning}\n")
 
-        return {"next": response.next_agent}
+        return {"next_node": response.next_agent}
 
     def data_node(state: AgentState) -> AgentState:
         current_loops = state.get("loop_counter", 0) + 1
-
-        llm_with_tools = base_model.bind_tools(DATA_TOOLS)
+        llm_with_tools = base_model.bind_tools(
+            DATA_TOOLS)
         messages = [SystemMessage(
             content=DATA_NODE_PROMPT)] + state["messages"]
         response = llm_with_tools.invoke(messages)
-        return {"messages": [response], "loop_counter": current_loops}
+        return {
+            "messages": [response],
+            "loop_counter": current_loops,
+            "active_agent": "data_node",
+        }
 
     def stats_node(state: AgentState) -> AgentState:
         current_loops = state.get("loop_counter", 0) + 1
-
-        llm_with_tools = base_model.bind_tools(STAT_TOOLS)
+        llm_with_tools = base_model.bind_tools(
+            STAT_TOOLS)  # no tool_choice forcing
         messages = [SystemMessage(
             content=STATS_NODE_PROMPT)] + state["messages"]
         response = llm_with_tools.invoke(messages)
-        return {"messages": [response], "loop_counter": current_loops}
-
-    def tool_node_with_trace(state: AgentState):
-
-        result = ToolNode(ALL_TOOLS).invoke(state)
-        last_msg = state["messages"][-1]
-        tool_calls = getattr(last_msg, "tool_calls", [])
-
-        # create a lookup map of tool_call_id -> tool details for matching
-        calls_map = {
-            tc["id"]: {"name": tc["name"], "args": tc["args"]}
-            for tc in tool_calls if "id" in tc
+        return {
+            "messages": [response],
+            "loop_counter": current_loops,
+            "active_agent": "stats_node",
         }
 
-        for msg in result["messages"]:
+    def tool_node_with_trace(state: AgentState):
+        active = state.get("active_agent")
+        try:
+            if active == "data_node":
+                result = data_tool_node.invoke(state)
+            elif active == "stats_node":
+                result = stats_tool_node.invoke(state)
+            else:
+                result = ToolNode(ALL_TOOLS).invoke(state)
+        except Exception as e:
+            print(f"  [TOOL ERROR] {e}")
+            last_msg = state["messages"][-1]
+            executed_tools = [tc["name"] for tc in getattr(
+                last_msg, "tool_calls", []) if "name" in tc]
+            error_msgs = [
+                ToolMessage(
+                    content=f"Tool execution failed: {str(e)}",
+                    tool_call_id=tc["id"]
+                )
+                for tc in getattr(last_msg, "tool_calls", [])
+            ]
+            return {
+                "messages": error_msgs,
+                "tool_trace": state.get("tool_trace", []) + executed_tools,
+            }
+
+        messages = result["messages"] if isinstance(result, dict) else result
+
+        last_msg = state["messages"][-1]
+        calls_map = {
+            tc["id"]: {"name": tc["name"], "args": tc["args"]}
+            for tc in getattr(last_msg, "tool_calls", []) if "id" in tc
+        }
+
+        for msg in messages:
             if msg.type == "tool":
                 tool_id = getattr(msg, "tool_call_id", None)
                 meta = calls_map.get(
                     tool_id, {"name": "Unknown Tool", "args": {}})
-
                 params_str = json.dumps(
                     meta["args"], indent=2).replace("\n", "\n  ")
                 print(
                     f"  [TOOL CALL]   Running '{meta['name']}' with params:\n  {params_str}")
-
                 if hasattr(msg, "content"):
                     try:
                         pretty = json.dumps(json.loads(msg.content), indent=2)
@@ -158,68 +222,102 @@ def build_graph(model: str = "gpt-4o"):
                         pretty = msg.content
                     print(f"  [TOOL RESULT] {pretty}\n")
 
-        return result
+        executed_tools = list(calls_map[tid]["name"] for tid in calls_map)
+
+        return {
+            "messages": messages,
+            "tool_trace": state.get("tool_trace", []) + executed_tools,
+        }
 
     def final_output_node(state: AgentState):
         llm_structured = base_model.with_structured_output(
             AgentResponse, method="function_calling"
         )
+        # sanitize before passing to LLM — prevents 400 on unresolved tool_calls
+        clean_messages = sanitize_messages_for_llm(state["messages"])
         messages = [SystemMessage(
-            content=FINAL_OUTPUT_PROMPT)] + state["messages"]
+            content=FINAL_OUTPUT_PROMPT)] + clean_messages
         response = llm_structured.invoke(messages)
 
         if isinstance(response, AgentResponse):
             print(f"\n[FINAL OUTPUT]")
-            print(f"  Thinking: {response.thinking}")
-            print(f"  Summary: {response.summary}")
+            print(f"  Thinking:       {response.thinking}")
+            print(f"  Summary:        {response.summary}")
             print(f"  Interpretation: {response.interpretation}")
-            print(f"  Statistics: {response.statistics}")
-            print(f"  Insight: {response.insight}")
+            print(f"  Statistics:     {response.statistics}")
+            print(f"  Insight:        {response.insight}")
 
-        return {"messages": [AIMessage(content=str(response))]}
+        return {"messages": [AIMessage(content=response.model_dump_json())]}
 
-    # assembly of graph
-    graph = StateGraph(AgentState)
-    graph.add_node("supervisor", supervisor_node)
-    graph.add_node("data_node", data_node)
-    graph.add_node("stats_node", stats_node)
-    graph.add_node("guardrail_tools", block_invalid_tool_calls)
-    graph.add_node("tools", tool_node_with_trace)
-    graph.add_node("final_output", final_output_node)
-    graph.add_node("guardrail_output", validate_output)
+    # --- routing ---
 
     def route_from_supervisor(state: AgentState) -> str:
-        if state["next"] == "FINISH":
+        next_node = state.get("next_node")
+        if next_node == "FINISH":
+            return "final_output"
+        elif next_node == "data_node":
+            return "data_node"
+        elif next_node == "stats_node":
+            return "stats_node"
+        else:
             return "final_output"
 
     def route_from_specialist(state: AgentState) -> str:
+        if state.get("loop_counter", 0) >= MAX_LOOPS:
+            return "supervisor"
         last_msg = state["messages"][-1]
         if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
             return "tools"
         return "supervisor"
 
+    def route_after_tools(state: AgentState) -> str:
+        active = state.get("active_agent")
+        if active in {"data_node", "stats_node"}:
+            return active
+        return "supervisor"
+
+    # --- graph assembly ---
+
+    graph = StateGraph(AgentState)
+    graph.add_node("supervisor", supervisor_node)
+    graph.add_node("data_node", data_node)
+    graph.add_node("stats_node", stats_node)
+    graph.add_node("tools", tool_node_with_trace)
+    graph.add_node("final_output", final_output_node)
+    graph.add_node("guardrail_output", validate_output)
+
     graph.set_entry_point("supervisor")
+
     graph.add_conditional_edges(
         "supervisor",
         route_from_supervisor,
         {
             "data_node": "data_node",
             "stats_node": "stats_node",
-            "final_output": "final_output"
+            "final_output": "final_output",
         }
     )
     graph.add_conditional_edges(
         "data_node",
         route_from_specialist,
-        {"tools": "guardrail_tools", "supervisor": "supervisor"}
+        {"tools": "tools", "supervisor": "supervisor"}
     )
     graph.add_conditional_edges(
         "stats_node",
         route_from_specialist,
-        {"tools": "guardrail_tools", "supervisor": "supervisor"}
+        {"tools": "tools", "supervisor": "supervisor"}
     )
-    graph.add_edge("guardrail_tools", "tools")
-    graph.add_edge("tools", "supervisor")
+
+    graph.add_conditional_edges(
+        "tools",
+        route_after_tools,
+        {
+            "data_node": "data_node",
+            "stats_node": "stats_node",
+            "supervisor": "supervisor",
+        }
+    )
+
     graph.add_edge("final_output", "guardrail_output")
     graph.add_edge("guardrail_output", END)
 
