@@ -70,7 +70,8 @@ FINAL_OUTPUT_PROMPT = """You are a data analyst summarizing findings for the use
 Format your final analysis exactly according to the structured output parameters required.
 IF THE USER'S QUESTION WAS IRRELEVANT TO STATISTICAL ANALYSIS OR DATA ANALYSIS,
 PROVIDE A NOTE IN "Summary" STATING THAT YOU CANNOT HELP WITH REQUESTS OUTSIDE THE SCOPE OF DATA AND STATISTICAL ANALYSIS, AND LEAVE ALL OTHER FIELDS EMPTY.
-"""
+
+Use the thinking_trace provided to construct your response. Do not generate new thinking — use what was actually done."""
 
 MAX_LOOPS = 10
 
@@ -106,6 +107,14 @@ def sanitize_messages_for_llm(messages: list) -> list:
                 continue  # drop message entirely if any tool call is unresolved
         clean.append(msg)
     return clean
+
+
+def extract_thinking_from_response(response):
+    """Extract thinking/reasoning from LLM response if present."""
+    if hasattr(response, "content") and response.content:
+        # If the response has reasoning in content, extract it
+        return str(response.content)[:200]  # First 200 chars of reasoning
+    return None
 
 
 def build_graph(model: str = "gpt-4o"):
@@ -153,23 +162,39 @@ def build_graph(model: str = "gpt-4o"):
         messages = [SystemMessage(
             content=DATA_NODE_PROMPT)] + state["messages"]
         response = llm_with_tools.invoke(messages)
+
+        # Extract thinking from response
+        thinking = extract_thinking_from_response(response)
+        thinking_trace = state.get("thinking_trace", [])
+        if thinking:
+            thinking_trace.append(f"[DATA_NODE] {thinking}")
+
         return {
             "messages": [response],
             "loop_counter": current_loops,
             "active_agent": "data_node",
+            "thinking_trace": thinking_trace,
         }
 
     def stats_node(state: AgentState) -> AgentState:
         current_loops = state.get("loop_counter", 0) + 1
         llm_with_tools = base_model.bind_tools(
-            STAT_TOOLS)  # no tool_choice forcing
+            STAT_TOOLS)
         messages = [SystemMessage(
             content=STATS_NODE_PROMPT)] + state["messages"]
         response = llm_with_tools.invoke(messages)
+
+        # Extract thinking from response
+        thinking = extract_thinking_from_response(response)
+        thinking_trace = state.get("thinking_trace", [])
+        if thinking:
+            thinking_trace.append(f"[STATS_NODE] {thinking}")
+
         return {
             "messages": [response],
             "loop_counter": current_loops,
             "active_agent": "stats_node",
+            "thinking_trace": thinking_trace,
         }
 
     def tool_node_with_trace(state: AgentState):
@@ -196,6 +221,7 @@ def build_graph(model: str = "gpt-4o"):
             return {
                 "messages": error_msgs,
                 "tool_trace": state.get("tool_trace", []) + executed_tools,
+                "thinking_trace": state.get("thinking_trace", []),
             }
 
         messages = result["messages"] if isinstance(result, dict) else result
@@ -227,19 +253,31 @@ def build_graph(model: str = "gpt-4o"):
         return {
             "messages": messages,
             "tool_trace": state.get("tool_trace", []) + executed_tools,
+            "thinking_trace": state.get("thinking_trace", []),
         }
 
     def final_output_node(state: AgentState):
         llm_structured = base_model.with_structured_output(
             AgentResponse, method="function_calling"
         )
-        # sanitize before passing to LLM — prevents 400 on unresolved tool_calls
+        # Construct thinking from accumulated trace
+        accumulated_thinking = "\n".join(state.get("thinking_trace", []))
+
+        # sanitize before passing to LLM
         clean_messages = sanitize_messages_for_llm(state["messages"])
+
+        # Add thinking context to prompt
+        prompt_with_thinking = FINAL_OUTPUT_PROMPT + \
+            f"\n\nAccumulated reasoning trace:\n{accumulated_thinking}"
         messages = [SystemMessage(
-            content=FINAL_OUTPUT_PROMPT)] + clean_messages
+            content=prompt_with_thinking)] + clean_messages
         response = llm_structured.invoke(messages)
 
         if isinstance(response, AgentResponse):
+            # Override thinking with accumulated trace
+            response.thinking = accumulated_thinking[:
+                                                     500] if accumulated_thinking else "Analysis complete."
+
             print(f"\n[FINAL OUTPUT]")
             print(f"  Thinking:       {response.thinking}")
             print(f"  Summary:        {response.summary}")

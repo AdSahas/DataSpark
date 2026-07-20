@@ -11,6 +11,8 @@ class AgentState(TypedDict, total=False):
     active_agent: Optional[Literal["data_node", "stats_node"]]
     schema_loaded: bool
     tool_trace: list[str]
+    thinking_trace: list[str] = Field(
+        default_factory=list, description="Accumulated reasoning from agent steps")
 
 
 class AgentResponse(BaseModel):
