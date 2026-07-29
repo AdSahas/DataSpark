@@ -114,11 +114,13 @@ DataSpark/
 │   ├── tools.py          # Statistical and data tools
 │   ├── schemas.py        # Pydantic models (AgentState, AgentResponse, RouterSchema)
 │   ├── guardrails.py     # Output validation
-│   └── prompts/          # System prompts for each agent
+│   └── prompts/          # System prompt for supervisor
 ├── frontend/
-│   ├── app.html          # Main dashboard
+│   ├── app.html          # Main entrypoint
 │   └── home.html         # Guide / landing page
-└── README.md
+├── README.md             # This document
+├── tests/                # Tests for debugging
+└── main.py               # FastAPI server
 ```
 
 ---
