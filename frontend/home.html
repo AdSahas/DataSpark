@@ -2,22 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>About DataSpark | Insights Driven by AI</title>
+    <title>DataSpark | Guide &amp; About</title>
     <style>
+      /* ── Shared design tokens (kept in sync with app.html) ── */
       :root {
         --bg: #020617;
         --card-bg: #0f172a;
         --border: #1e293b;
         --accent: #38bdf8;
+        --accent-dim: rgba(56, 189, 248, 0.12);
         --text-main: #f1f5f9;
         --text-muted: #94a3b8;
+        --green: #059669;
+        --green-bg: #064e3b;
+        --green-text: #d1fae5;
       }
 
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
 
       body {
         font-family: "Inter", system-ui, sans-serif;
@@ -26,208 +27,441 @@
         min-height: 100vh;
         display: flex;
         flex-direction: column;
-        align-items: center;
       }
 
-      /* Navbar */
+      /* ── Nav (identical structure to app.html) ── */
       nav {
-        width: 100%;
-        padding: 20px 40px;
-        background: rgba(15, 23, 42, 0.5);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--border);
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding: 18px 32px;
+        background: rgba(15, 23, 42, 0.5);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+        position: sticky;
+        top: 0;
+        z-index: 100;
       }
+      .logo { font-size: 1.25rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+      .nav-links { display: flex; gap: 24px; align-items: center; }
+      .nav-link { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; }
+      .nav-link:hover { color: var(--accent); }
+      .nav-active { color: var(--accent); font-weight: 600; text-decoration: none; font-size: 0.9rem; }
 
-      .logo {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #fff;
-        letter-spacing: -0.5px;
-      }
-
-      .nav-links {
-        display: flex;
-        gap: 24px;
-        align-items: center;
-      }
-
-      .nav-link {
-        color: var(--text-muted);
-        text-decoration: none;
-        font-size: 0.9rem;
-        transition: 0.2s;
-      }
-
-      .nav-link:hover {
-        color: var(--accent);
-      }
-
-      .nav-active {
-        color: var(--accent);
-        font-weight: 600;
-        text-decoration: none;
-      }
-
-      .btn-cta {
-        background: var(--accent);
-        color: var(--bg);
-        padding: 8px 16px;
-        border-radius: 6px;
-        text-decoration: none;
-        font-size: 0.9rem;
-        font-weight: 700;
-        transition: 0.2s;
-      }
-
-      .btn-cta:hover {
-        filter: brightness(1.1);
-      }
-
-      /* Page Content */
+      /* ── Page content ── */
       main {
-        width: 100%;
+        flex: 1;
         max-width: 800px;
-        padding: 40px 20px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 64px 32px 96px;
       }
 
-      .card {
+      /* ── Hero ── */
+      .hero {
+        margin-bottom: 64px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 48px;
+      }
+      .hero-eyebrow {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--accent);
+        font-weight: 700;
+        margin-bottom: 16px;
+      }
+      .hero h1 {
+        font-size: 2.4rem;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: -0.5px;
+        margin-bottom: 20px;
+        color: #fff;
+      }
+      .hero h1 span { color: var(--accent); }
+      .hero p {
+        font-size: 1.05rem;
+        color: var(--text-muted);
+        line-height: 1.7;
+        max-width: 620px;
+      }
+
+      /* ── Section headings ── */
+      .section {
+        margin-bottom: 52px;
+      }
+      .section-label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--accent);
+        font-weight: 800;
+        margin-bottom: 14px;
+      }
+      .section h2 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--text-main);
+      }
+      .section p {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        line-height: 1.75;
+        margin-bottom: 12px;
+      }
+      .section p:last-child { margin-bottom: 0; }
+
+      /* ── Step cards (How to use) ── */
+      .steps { display: flex; flex-direction: column; gap: 12px; }
+      .step {
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
         background: var(--card-bg);
         border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 32px;
-        margin-bottom: 24px;
-        transition: transform 0.2s;
+        border-radius: 10px;
+        padding: 20px;
+        transition: border-color 0.2s;
       }
-
-      .card:hover {
-        transform: scale(1.01);
-        border-color: var(--accent);
-      }
-
-      h1 {
-        color: #fff;
-        margin-bottom: 16px;
-        font-size: 2rem;
-      }
-
-      h2 {
+      .step:hover { border-color: #334155; }
+      .step-num {
+        /* Fixed-width circle keeps numbers from reflowing */
+        min-width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--accent-dim);
+        border: 1px solid var(--accent);
         color: var(--accent);
-        margin: 24px 0 16px;
-        font-size: 1.25rem;
+        font-size: 0.75rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
       }
-
-      p {
+      .step-body h3 {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 4px;
+      }
+      .step-body p {
+        font-size: 0.85rem;
+        color: var(--text-muted);
         line-height: 1.6;
-        color: var(--text-muted);
-        margin-bottom: 16px;
+        margin: 0;
       }
 
-      ul {
-        margin-bottom: 16px;
-        padding-left: 20px;
+      /* ── Output anatomy cards ── */
+      .output-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 600px) { .output-grid { grid-template-columns: 1fr; } }
+      .output-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px;
+      }
+      .output-card .tag {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+      }
+      .tag-blue  { background: rgba(56,189,248,0.15); color: var(--accent); }
+      .tag-green { background: rgba(5,150,105,0.2);   color: #34d399; }
+      .tag-slate { background: rgba(71,85,105,0.3);   color: #94a3b8; }
+      .tag-amber { background: rgba(245,158,11,0.15); color: #fbbf24; }
+      .output-card h4 {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 6px;
+      }
+      .output-card p {
+        font-size: 0.82rem;
         color: var(--text-muted);
+        line-height: 1.6;
+        margin: 0;
       }
 
-      li {
-        margin-bottom: 8px;
-        line-height: 1.5;
+      /* ── Example queries ── */
+      .query-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .query-pill {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        font-family: "Menlo", "Consolas", monospace;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .query-pill::before {
+        content: "›";
+        color: var(--accent);
+        font-size: 1rem;
+        font-style: normal;
+        flex-shrink: 0;
+      }
+
+      /* ── Architecture note ── */
+      .arch-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: 10px;
+        padding: 24px;
+      }
+      .arch-card p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        line-height: 1.75;
+        margin-bottom: 12px;
+      }
+      .arch-card p:last-child { margin-bottom: 0; }
+      .arch-card strong { color: var(--text-main); }
+
+      /* ── CTA ── */
+      .cta-block {
+        margin-top: 64px;
+        padding: 36px;
+        border-radius: 12px;
+        background: var(--accent-dim);
+        border: 1px solid rgba(56,189,248,0.25);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+      }
+      .cta-block p {
+        font-size: 1rem;
+        color: var(--text-main);
+        font-weight: 600;
+        margin: 0;
+      }
+      .cta-block span {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 400;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      .cta-btn {
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 24px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: filter 0.2s;
+      }
+      .cta-btn:hover { filter: brightness(1.1); }
+
+      /* ── Footer ── */
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 24px 32px;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #334155;
       }
     </style>
   </head>
   <body>
+
+    <!-- Nav matches app.html exactly, with active link swapped to this page -->
     <nav>
-      <div class="logo">⚡ DataSpark <b style="color: yellow; font-size: smaller;">BETA</b></div>
+      <div class="logo">⚡ DataSpark <b style="color:yellow; font-size:small;"> BETA </b></div>
       <div class="nav-links">
-        <a href="/" class="nav-active">About</a>
-        <a href="/app" class="btn-cta">Launch App</a>
+        <a href="/app" class="nav-link">Dashboard</a>
+        <a href="/home" class="nav-active">✦ Guide &amp; About</a>
       </div>
     </nav>
 
     <main>
-      <div class="card">
-        <h1>⚡ Welcome to DataSpark!</h1>
-        <p>
-          DataSpark is an intelligent, agent-powered platform designed to turn
-          raw CSV data into structured, actionable intelligence.
-        </p>
-      </div>
-      <div class="card">
-        <h2>The App</h2>
-        <p>
-          Statistical analysis is a tool that everyone must be able to harness.
-          Whether you're a business-person, student, researcher, or data
-          enthusiast, our platform makes it easy to derive insights from your
-          data. With the power of AI, DataSpark automates the process of data
-          analysis, allowing you to focus on making informed decisions wherever
-          you need them.
-        </p>
-      </div>
-      <div class="card">
-        <h2>How It Works</h2>
-        <ul>
-          <li>Upload your CSV file.</li>
-          <li>
-            DataSpark processes the data and generates a structured summary.
-          </li>
-          <li>Interact with the data through an intuitive chat interface.</li>
-          <li>
-            Receive insights, visualizations, and recommendations based on your
-            data.
-          </li>
-        </ul>
-        <p>
-          Our platform is designed to be user-friendly, making data analysis
-          accessible to everyone, regardless of their technical background.
-        </p>
-      </div>
-      <div class="card">
-        <h2>Capabilities</h2>
-        <ul>
-          <li><strong>What it can do</strong></li>
-          <ul>
-            <li>
-              Run statistical analysis on tabular datasets (CSV/DataFrames)
-            </li>
-            <li>
-              Perform linear and logistic regression with automatic validation
-            </li>
-            <li>Compute correlation analysis (Pearson and Spearman)</li>
-            <li>Run chi-squared tests for categorical associations</li>
-            <li>Detect outliers using statistical thresholds</li>
-            <li>Execute SQL queries on datasets using DuckDB</li>
-            <li>Provide dataset profiling and schema inference</li>
-            <li>Detect time-series trends using Mann-Kendall tests</li>
-            <li>Fit polynomial curve models and compare R² scores</li>
-            <li>Auto-handle basic data cleaning (null removal, type checks)</li>
-            <li>Encode categorical variables into numeric format</li>
-          </ul>
 
-          <li><strong>What it cannot do</strong></li>
-          <ul>
-            <li>Guarantee causal inference (correlation ≠ causation)</li>
-            <li>
-              Handle extremely large datasets without performance constraints
-            </li>
-            <li>
-              Replace full machine learning pipelines or feature engineering
-              systems
-            </li>
-            <li>
-              Automatically resolve poor data quality (missingness, bias, or
-              leakage)
-            </li>
-            <li>Infer business context without explicit dataset metadata</li>
-            <li>
-              Guarantee statistical validity when assumptions are violated
-            </li>
-            <li>Replace domain-specific expert interpretation</li>
-            <li>Operate without a loaded dataset in memory</li>
-          </ul>
-        </ul>
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-eyebrow">Guide &amp; About</div>
+        <h1>Plain-language analysis<br>for any <span>CSV dataset</span></h1>
+        <p>
+          DataSpark is an AI-powered data analysis tool that lets you ask questions about
+          your data in plain English. No SQL, no Python, no prior data experience needed.
+          Drop in a CSV, type a question, and get statistics, interpretations, and actionable
+          insights in seconds.
+        </p>
       </div>
+
+      <!-- What it is -->
+      <div class="section">
+        <div class="section-label">What it is</div>
+        <h2>An agent that reads your data, not just your question</h2>
+        <p>
+          Most data tools make you learn their query language. DataSpark works the other way around:
+          you describe what you want to know, and an LLM-powered agent figures out which operations
+          to run against your dataset to get there.
+        </p>
+        <p>
+          Under the hood, a <strong>LangGraph agent</strong> receives your message, selects from
+          a set of analytical tools (descriptive stats, correlation, filtering, grouping, and more),
+          runs them against the uploaded data, and then synthesises the results into a structured
+          response, complete with a plain-English summary, key statistics, and an interpretive insight.
+        </p>
+      </div>
+
+      <!-- How to use -->
+      <div class="section">
+        <div class="section-label">How to use it</div>
+        <h2>Three steps to your first analysis</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h3>Upload your CSV</h3>
+              <p>
+                Click <strong>Upload CSV</strong> in the top bar and select any comma-separated
+                file from your machine. DataSpark reads the file into memory; nothing is stored
+                permanently. The status bar confirms when it's ready.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h3>Ask a question in plain English</h3>
+              <p>
+                Type your question in the input bar at the bottom of the Dashboard and press
+                <strong>Enter</strong> or click <strong>Analyze</strong>. You don't need to name
+                columns precisely. The agent maps your intent to the right fields automatically.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h3>Read the results</h3>
+              <p>
+                The left panel shows which analytical operations the agent ran. The right panel
+                shows the full response: a summary, detailed statistics, an interpretation, and
+                an insight highlighting what's most worth noticing.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Example queries -->
+      <div class="section">
+        <div class="section-label">Example queries</div>
+        <h2>Things you can ask</h2>
+        <div class="query-list">
+          <div class="query-pill">What are the summary statistics for this dataset?</div>
+          <div class="query-pill">Which column has the most missing values?</div>
+          <div class="query-pill">Is there a correlation between price and sales volume?</div>
+          <div class="query-pill">Show me the top 5 rows by revenue.</div>
+          <div class="query-pill">What's the average score grouped by category?</div>
+          <div class="query-pill">Are there any obvious outliers in the data?</div>
+        </div>
+      </div>
+
+      <!-- Output anatomy -->
+      <div class="section">
+        <div class="section-label">Reading the output</div>
+        <h2>What each section means</h2>
+        <div class="output-grid">
+          <div class="output-card">
+            <span class="tag tag-blue">Summary</span>
+            <h4>Plain-English answer</h4>
+            <p>A one or two sentence direct answer to exactly what you asked.</p>
+          </div>
+          <div class="output-card">
+            <span class="tag tag-blue">Interpretation</span>
+            <h4>What the numbers mean</h4>
+            <p>Context around the statistics: patterns, what's normal, what stands out.</p>
+          </div>
+          <div class="output-card">
+            <span class="tag tag-blue">Statistics</span>
+            <h4>Raw computed values</h4>
+            <p>The actual numbers the agent calculated: means, counts, correlations, etc.</p>
+          </div>
+          <div class="output-card">
+            <span class="tag tag-green">Insight</span>
+            <h4>The most important finding</h4>
+            <p>The single observation most worth acting on, surfaced from the full result.</p>
+          </div>
+          <div class="output-card">
+            <span class="tag tag-slate">Thinking</span>
+            <h4>Agent reasoning (expandable)</h4>
+            <p>The agent's internal chain of thought. Collapse it when you don't need it.</p>
+          </div>
+          <div class="output-card">
+            <span class="tag tag-amber">Correction</span>
+            <h4>When something goes wrong</h4>
+            <p>Appears if the agent couldn't complete the task, with a hint on how to rephrase.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture -->
+      <div class="section">
+        <div class="section-label">Under the hood</div>
+        <h2>How DataSpark is built</h2>
+        <div class="arch-card">
+          <p>
+            The backend is a <strong>FastAPI</strong> server that exposes two endpoints:
+            <strong>/upload</strong> (which parses your CSV into a Pandas DataFrame held in memory)
+            and <strong>/chat</strong> (which hands your message to the agent and returns a
+            structured JSON response).
+          </p>
+          <p>
+            The agent is built with <strong>LangGraph</strong>. When you send a query, the graph
+            routes the request through a reasoning step, selects one or more analytical tools,
+            executes them against the in-memory DataFrame, and passes the results back to the model
+            to produce a final structured response.
+          </p>
+          <p>
+            The frontend is plain HTML, CSS, and JavaScript with no framework. It sends your CSV
+            and messages to the backend, then renders the structured response into the Operations
+            and Analysis Results panels you see on the Dashboard.
+          </p>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="cta-block">
+        <div>
+          <p>Ready to explore your data?</p>
+          <span>Upload a CSV and ask your first question on the Dashboard.</span>
+        </div>
+        <a href="/app" class="cta-btn">Go to Dashboard →</a>
+      </div>
+
     </main>
+
+    <footer>
+      ⚡ DataSpark — BETA &nbsp;·&nbsp; Built with FastAPI &amp; LangGraph
+    </footer>
+
   </body>
 </html>

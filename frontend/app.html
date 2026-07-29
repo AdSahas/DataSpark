@@ -32,10 +32,20 @@
         backdrop-filter: blur(12px);
       }
       .logo { font-size: 1.25rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
-      .nav-links { display: flex; gap: 24px; }
+      .nav-links { display: flex; gap: 24px; align-items: center; }
       .nav-link { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.2s; }
       .nav-link:hover { color: var(--accent); }
-      .nav-active { color: var(--accent); font-weight: 600; text-decoration: none; }
+      .nav-active { color: var(--accent); font-weight: 600; text-decoration: none; font-size: 0.9rem; }
+      .nav-guide {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .nav-guide:hover { color: var(--accent); }
       #upload-bar {
         padding: 16px 32px;
         background: var(--card-bg);
@@ -144,9 +154,7 @@
         font-style: italic;
         line-height: 1.5;
       }
-      .thinking-card details {
-        cursor: pointer;
-      }
+      .thinking-card details { cursor: pointer; }
       .thinking-card summary {
         font-weight: 600;
         font-style: normal;
@@ -213,6 +221,7 @@
       <div class="logo">⚡ DataSpark <b style="color:yellow; font-size:small;"> BETA </b></div>
       <div class="nav-links">
         <a href="/app" class="nav-active">Dashboard</a>
+        <a href="/home" class="nav-guide">✦ Guide &amp; About</a>
       </div>
     </nav>
 
@@ -283,8 +292,6 @@
         }
       }
 
-      // ── Helpers ──────────────────────────────────────────────────────────────
-
       function tag(el, cls, inner) {
         return "<" + el + " class='" + cls + "'>" + inner + "</" + el + ">";
       }
@@ -313,8 +320,6 @@
         return esc(String(value));
       }
 
-      // ── Renderers ─────────────────────────────────────────────────────────────
-
       function renderTools(toolCalls) {
         var container = document.getElementById("tool-list");
         if (!toolCalls.length) {
@@ -334,7 +339,6 @@
         var container = document.getElementById("result-list");
         var html = "";
 
-        // 1. Thinking (collapsible)
         if (data.thinking) {
           html += "<div class='thinking-card'>"
             + "<details>"
@@ -344,12 +348,10 @@
             + "</div>";
         }
 
-        // 2. Summary
         if (data.summary) {
           html += "<div class='summary-banner'>💬 " + esc(data.summary) + "</div>";
         }
 
-        // 3. Interpretation + Statistics
         var hasInterp = data.interpretation && data.interpretation.trim();
         var hasStats  = data.statistics && Object.keys(data.statistics).length > 0;
 
@@ -374,17 +376,14 @@
           html += "</div>";
         }
 
-        // 4. Insight
         if (data.insight && data.insight.trim()) {
           html += "<div class='insight-card'>💡 <strong>Insight:</strong> " + esc(data.insight) + "</div>";
         }
 
-        // 5. Error Guidance
         if (data.error_guidance) {
           html += "<div class='error-card'>⚠️ <strong>Correction:</strong> " + esc(data.error_guidance) + "</div>";
         }
 
-        // Fallback
         if (!html.trim()) {
           html = "<div class='result-card'><div class='section-label'>Raw Response</div>"
             + "<pre style='font-size:0.75rem;color:var(--text-muted);white-space:pre-wrap;'>"
