@@ -34,6 +34,11 @@ def dashboard():
     return FileResponse("frontend/app.html")
 
 
+@app.get("/home")
+def guide():
+    return FileResponse("frontend/home.html")
+
+
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
     import pandas as pd
