@@ -113,7 +113,7 @@ def extract_thinking_from_response(response):
     """Extract thinking/reasoning from LLM response if present."""
     if hasattr(response, "content") and response.content:
         # If the response has reasoning in content, extract it
-        return str(response.content)[:200]  # First 200 chars of reasoning
+        return str(response.content)
     return None
 
 
@@ -275,8 +275,7 @@ def build_graph(model: str = "gpt-4o"):
 
         if isinstance(response, AgentResponse):
             # Override thinking with accumulated trace
-            response.thinking = accumulated_thinking[:
-                                                     500] if accumulated_thinking else "Analysis complete."
+            response.thinking = accumulated_thinking if accumulated_thinking else "Analysis complete."
 
             print(f"\n[FINAL OUTPUT]")
             print(f"  Thinking:       {response.thinking}")

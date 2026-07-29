@@ -135,7 +135,6 @@
         margin-bottom: 12px;
       }
       .thinking-card {
-        background: #red;
         border-left: 3px solid #475569;
         color: #94a3b8;
         padding: 14px;
@@ -144,6 +143,29 @@
         font-size: 0.8rem;
         font-style: italic;
         line-height: 1.5;
+      }
+      .thinking-card details {
+        cursor: pointer;
+      }
+      .thinking-card summary {
+        font-weight: 600;
+        font-style: normal;
+        color: var(--text-main);
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        user-select: none;
+      }
+      .thinking-card summary::-webkit-details-marker { display: none; }
+      .thinking-card details[open] summary::before { content: "▾"; color: var(--accent); }
+      .thinking-card details:not([open]) summary::before { content: "▸"; color: var(--accent); }
+      .thinking-card details div {
+        margin-top: 10px;
+        white-space: pre-wrap;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 4px;
       }
       .summary-banner {
         background: #0c4a6e;
@@ -217,7 +239,7 @@
     </div>
 
     <script>
-      var API = "https://dataspark-demo.onrender.com"; // for local runs, change to http://127.0.0.1:8000
+      var API = "https://dataspark-demo.onrender.com"; // for local runs, change to http://127.0.0.1:8000 and https://dataspark-demo.onrender.com for render demo
 
       document.getElementById("csv-input").addEventListener("change", async function(e) {
         var file = e.target.files[0];
@@ -312,11 +334,13 @@
         var container = document.getElementById("result-list");
         var html = "";
 
-        // 1. Thinking
+        // 1. Thinking (collapsible)
         if (data.thinking) {
           html += "<div class='thinking-card'>"
-            + "<strong style='color:var(--text-main);'>🧠 Thinking</strong><br/>"
-            + esc(data.thinking)
+            + "<details>"
+            + "<summary>🧠 Thinking</summary>"
+            + "<div>" + esc(data.thinking) + "</div>"
+            + "</details>"
             + "</div>";
         }
 
