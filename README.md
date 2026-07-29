@@ -1,141 +1,128 @@
-# DataSpark: Statistical Analysis & ML Toolkit
+# DataSpark
 
-A production-grade Python framework for **statistical analysis and data profiling** built on Pandas, Statsmodels, SciPy, and DuckDB.
+An AI-powered statistical analysis engine. Ask questions about your data in plain English — DataSpark routes your query through a multi-agent system, runs the right statistical tools, and returns a structured, interpretable result.
 
-It provides a unified, validated execution layer for running statistical tests, regression models, SQL queries, and dataset intelligence operations — designed for structured data and AI-driven analytics systems.
-
----
-
-## ✨ Key Capabilities
-
-### 📈 Statistical Modeling
-- Linear Regression (OLS)
-- Logistic Regression (Logit)
-- Pearson & Spearman Correlation
-- Chi-Squared Test of Independence
-- Mann-Kendall Trend Detection
-- Polynomial Curve Fitting with R² comparison
-
-### 🧠 Data Intelligence
-- Automatic schema inference
-- Column profiling (numeric, categorical, datetime detection)
-- Value distribution analysis
-- Dataset classification and structure reporting
-- Outlier detection using statistical thresholds
-
-### ⚙️ Data Processing Pipeline
-Input → Validate → Transform → Execute → Normalize → Return
-
-- Input validation ensures type safety and schema correctness  
-- Transformation layer handles encoding and feature preparation  
-- Execution layer runs statistical or SQL operations  
-- Normalization ensures consistent numeric scaling  
-- Output is standardized into a unified response format  
+**Live demo:** [dataspark-demo.onrender.com/app](https://dataspark-demo.onrender.com/app)
 
 ---
 
-## 🏗️ Architecture Overview
+## How It Works
 
-```txt
-┌──────────────────────────────┐
-│        User Input            │
-└─────────────┬────────────────┘
-              ↓
-┌──────────────────────────────┐
-│     Validation Layer         │
-└─────────────┬────────────────┘
-              ↓
-┌──────────────────────────────┐
-│   Transformation Layer       │
-└─────────────┬────────────────┘
-              ↓
-┌──────────────────────────────┐
-│    Execution Engine          │
-└─────────────┬────────────────┘
-              ↓
-┌──────────────────────────────┐
-│   Response Normalization     │
-└──────────────────────────────┘
+DataSpark uses a supervisor-agent architecture built on LangGraph. When you submit a query:
+
+1. A **Supervisor** reads your question and decides whether it requires data retrieval, statistical analysis, or both.
+2. It routes to a **Data Agent** (schema exploration, sampling, SQL queries, outlier detection) or a **Statistics Agent** (regression, hypothesis testing, group comparisons, trend analysis).
+3. Each agent calls only the tools it needs. If a tool fails or returns an incompatible result, the agent self-heals and retries with an alternative.
+4. A **Final Output Node** assembles the accumulated reasoning trace into a structured response: summary, interpretation, statistics, and insight.
+5. A **Guardrail Layer** validates the output before it reaches the user.
+
 ```
----
-
-## 🔧 Core Features
-
-### 🧮 Regression Analysis
-- Multiple linear regression with diagnostics
-- Logistic regression with class balance checks
-- Coefficient extraction and model evaluation
-
-### 🔬 Hypothesis Testing
-- Correlation significance testing
-- Chi-squared independence testing
-- Trend detection using non-parametric methods
-
-### 📊 Data Utilities
-- Column-wise statistics computation
-- Frequency distributions (value counts)
-- Outlier detection using mean ± 2σ rule
-- Dataset sampling and profiling
-
-### 💾 SQL Integration
-- DuckDB-powered in-memory SQL execution
-- Query datasets using standard SQL syntax
-- Seamless bridge between relational and analytical workflows
+User Query
+    │
+    ▼
+Supervisor
+    ├──► Data Agent ──► Tools ──┐
+    │                           │
+    └──► Stats Agent ──► Tools ─┤
+                                │
+                          Supervisor (loop)
+                                │
+                          Final Output
+                                │
+                          Guardrail
+                                │
+                          Structured Response
+```
 
 ---
 
-## 🧩 Design Principles
+## Capabilities
 
-- Deterministic execution pipeline for reproducible outputs  
-- Strict validation before computation  
-- Unified result schema for downstream ML/AI consumption  
-- Hybrid analytics engine combining SQL + Python stack  
-- Safe preprocessing layer with encoding and normalization  
+**Data tools**
+- Schema inspection and column statistics
+- Random sampling and value counts
+- SQL querying over uploaded datasets
+- Outlier detection and dataset classification
 
----
-
-## 📦 Stack
-
-Python, Pandas, NumPy, SciPy, Statsmodels, DuckDB, PyMannKendall, LangChain Tools, FastAPI
-
----
-
-## 📤 Output Schema
-
-{
-  "status": "ok | error",
-  "data": {},
-  "message": "",
-  "diagnostics": {}
-}
+**Statistical tools**
+- Two-group comparison (t-test / Mann-Whitney)
+- Multi-group comparison (ANOVA / Kruskal-Wallis)
+- Categorical association (chi-square)
+- Regression analysis (linear / logistic)
+- Trend and curve analysis
 
 ---
 
-## ⚠️ Limitations
+## Tech Stack
 
-- Structured tabular data only  
-- Not distributed / big data optimized  
-- No causal inference guarantees  
-- Requires preloaded dataset in memory  
-
----
-
-## 🚀 Use Cases
-
-- Exploratory Data Analysis (EDA)
-- Statistical modeling
-- Feature relationship discovery
-- Time-series trend detection
-- SQL-based analytics
+- **Orchestration:** LangGraph
+- **LLM:** OpenAI GPT-4o
+- **Backend:** FastAPI, Python
+- **Statistical computation:** SciPy, scikit-learn
+- **Frontend:** Static HTML served by FastAPI
 
 ---
 
-## 🔧 How to use
-- Create a .env and add an OpenAI API key: OPENAI_API_KEY={your_key_here}
-- Run: ```txt
-  uvicorn main:app```
-- Open localhost: http://127.0.0.1:8000
+## Getting Started
 
-## 🚀🚀 Future Work
+### Prerequisites
 
-- Expand safe kernel to incorporate Machine Learning workflows
+- Python 3.10+
+- OpenAI API key
+
+### Installation
+
+```bash
+git clone https://github.com/AdSahas/DataSpark.git
+cd DataSpark
+pip install -r requirements.txt
+```
+
+### Configuration
+
+Create a `.env` file in the root directory:
+
+```
+OPENAI_API_KEY=your_key_here
+```
+
+### Run
+
+```bash
+uvicorn main:app --reload
+```
+
+Then open [http://127.0.0.1:8000/app](http://127.0.0.1:8000/app) in your browser.
+
+---
+
+## Example Queries
+
+- "Is there a significant difference in sales between regions A and B?"
+- "Show me the distribution of age in this dataset and flag outliers."
+- "Run a linear regression predicting revenue from ad spend."
+- "Is there an association between product category and return rate?"
+
+---
+
+## Project Structure
+
+```
+DataSpark/
+├── backend/
+│   ├── graph.py          # LangGraph agent graph
+│   ├── tools.py          # Statistical and data tools
+│   ├── schemas.py        # Pydantic models (AgentState, AgentResponse, RouterSchema)
+│   ├── guardrails.py     # Output validation
+│   └── prompts/          # System prompts for each agent
+├── frontend/
+│   ├── app.html          # Main dashboard
+│   └── home.html         # Guide / landing page
+└── README.md
+```
+
+---
+
+## License
+
+MIT
